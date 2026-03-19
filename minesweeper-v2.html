@@ -179,60 +179,10 @@
     }
   }
 
-  // ── 플레이어 수 슬라이더 ──
-  $("player-count-slider").addEventListener("input",()=>{
-    playerCount=parseInt($("player-count-slider").value);
-    $("player-count-display").textContent=playerCount+"명";
-    renderPlayerNameInputs();
-  });
-
-  function renderPlayerNameInputs(){
-    const c=$("player-name-inputs");
-    c.innerHTML="";
-    for(let i=0;i<playerCount;i++){
-      const col=COLORS[i%COLORS.length];
-      c.innerHTML+=`<div class="player-slot">
-        <div class="slot-label">플레이어 ${i+1}</div>
-        <div class="slot-row">
-          <div style="width:24px;height:24px;border-radius:50%;background:${col.bg};color:${col.fg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;" id="badge-${i}">?</div>
-          <input type="text" placeholder="이름 입력" maxlength="8" oninput="updateBadge(${i},this.value)" id="pname-${i}">
-        </div>
-      </div>`;
-    }
-  }
-  window.updateBadge=(i,v)=>{const b=$(`badge-${i}`);if(b)b.textContent=v.trim()?v.trim()[0].toUpperCase():"?";};
-  renderPlayerNameInputs();
+  // 방 만들기는 admin-panel.html 에서만 가능
 
   // ── 방 만들기 ──
-  $("btn-create-room").addEventListener("click",async()=>{
-    const pw=$("admin-pw-input").value.trim();
-    const mc=parseInt($("mine-count-input").value)||15;
-    const names=Array.from({length:playerCount},(_,i)=>$(`pname-${i}`)?.value.trim()||"");
-    if(!pw){showErr("create-err","관리자 비밀번호를 입력하세요.");return;}
-    if(mc<1||mc>300){showErr("create-err","지뢰 수는 1~300개입니다.");return;}
-    if(names.some(n=>!n)){showErr("create-err","모든 플레이어 이름을 입력하세요.");return;}
-    if(new Set(names).size!==playerCount){showErr("create-err","이름이 중복되었습니다.");return;}
-    adminPw=pw; isAdmin=true;
-    ROOM_ID=Math.random().toString(36).slice(2,8).toUpperCase();
-    const players=names.map((name,i)=>({name,color:i,turns:0,pending:false,log:[]}));
-    const initState={
-      phase:"game",mines:mc,adminPwHash:btoa(pw),playerCount,players,
-      pendingJoin:{},
-      board:null,
-      revealed:Array(ROWS*COLS).fill(false),
-      flagged:Array(ROWS*COLS).fill(false),
-      gameOver:false,gameWon:false,firstClick:true,msg:""
-    };
-    try{
-      await set(roomRef(),initState);
-      gameState=initState;
-      // 알림 권한 요청
-      await requestNotifPermission();
-      $("room-id-display").textContent=ROOM_ID;
-      showScreen("screen-room-created");
-      listenState();
-    }catch(e){showErr("create-err","Firebase 오류: "+e.message);}
-  });
+  // 방 만들기는 admin-panel.html 에서만
 
   // ── 입장 요청 ──
   $("btn-join-room").addEventListener("click",async()=>{
@@ -674,52 +624,30 @@ select{padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--ra
 <body>
 <div id="app">
 
-<!-- 로비 -->
+<!-- 로비 — 플레이어 입장 전용 -->
 <div class="screen active" id="screen-lobby">
-  <div style="text-align:center;padding:1rem 0;">
-    <div style="font-size:24px;font-weight:600;margin-bottom:4px;">💣 지뢰찾기 멀티플레이어</div>
-    <div style="font-size:13px;color:#888;">Firebase 실시간 동기화</div>
-  </div>
-  <div class="card">
-    <div class="card-title">🏠 새 방 만들기 (관리자)</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <input type="password" id="admin-pw-input" placeholder="관리자 비밀번호" style="flex:1;">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem;">
+    <div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:20px;">
+      <div style="text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">💣</div>
+        <div style="font-size:22px;font-weight:600;margin-bottom:4px;">지뢰찾기</div>
+        <div style="font-size:13px;color:#888;">방 코드와 이름을 입력해서 입장하세요</div>
+      </div>
+      <div class="card">
+        <input type="text" id="join-room-id" placeholder="방 코드 (6자리)" maxlength="6"
+          style="text-align:center;letter-spacing:6px;font-size:20px;font-weight:700;margin-bottom:10px;text-transform:uppercase;">
+        <input type="text" id="join-name" placeholder="내 이름" maxlength="8"
+          style="text-align:center;font-size:16px;margin-bottom:4px;">
+        <div class="err hidden" id="join-err" style="margin-bottom:4px;"></div>
+        <button id="btn-join-room" class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;margin-top:6px;">입장하기 →</button>
+      </div>
+      <div style="text-align:center;font-size:12px;color:#aaa;">관리자는 <b style="color:#555;">admin-panel.html</b> 에서 방을 만들어요</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
-      <input type="number" id="mine-count-input" value="15" min="1" max="300" style="width:90px;">
-      <span style="font-size:13px;color:#888;">개 지뢰 (1~300)</span>
-    </div>
-    <div style="margin-bottom:14px;">
-      <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">플레이어 수: <b id="player-count-display">4명</b></div>
-      <input type="range" id="player-count-slider" min="2" max="15" value="4" style="width:100%;">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:2px;"><span>2명</span><span>15명</span></div>
-    </div>
-    <div id="player-name-inputs" class="player-slots"></div>
-    <div class="err hidden" id="create-err"></div>
-    <button id="btn-create-room" class="btn btn-primary" style="width:100%;margin-top:12px;padding:12px;">방 만들기</button>
-  </div>
-  <div class="card">
-    <div class="card-title">🚪 방 입장하기 (플레이어)</div>
-    <div style="font-size:12px;color:#888;margin-bottom:10px;">관리자가 등록한 이름으로만 입장 요청 가능해요</div>
-    <div style="display:flex;gap:8px;margin-bottom:8px;">
-      <input type="text" id="join-room-id" placeholder="방 코드 (6자리)" maxlength="6" style="width:150px;letter-spacing:3px;font-weight:600;">
-      <input type="text" id="join-name" placeholder="내 이름 (관리자 등록 이름)" style="flex:1;">
-    </div>
-    <div class="err hidden" id="join-err"></div>
-    <button id="btn-join-room" class="btn" style="width:100%;padding:10px;">입장 요청 보내기 →</button>
   </div>
 </div>
 
-<!-- 방 생성 완료 -->
-<div class="screen" id="screen-room-created">
-  <div class="card" style="text-align:center;">
-    <div class="card-title" style="text-align:center;">방이 생성되었습니다!</div>
-    <div style="font-size:13px;color:#888;margin-bottom:12px;">아래 코드를 친구들에게 공유하세요</div>
-    <div class="room-code" id="room-id-display">------</div>
-    <div style="font-size:12px;color:#aaa;margin-top:10px;line-height:1.6;">친구들이 입장 요청을 보내면<br>관리자 패널에서 승인해주세요<br><br>브라우저 알림을 허용하면 요청 시 알림이 와요 🔔</div>
-    <button id="btn-enter-game" class="btn btn-primary" style="width:100%;margin-top:16px;padding:12px;">관리자로 게임 입장 →</button>
-  </div>
-</div>
+<!-- 방 생성 완료 — admin-panel 에서 사용, 게임 파일에서는 불필요하지만 ID 유지 -->
+<div class="screen" id="screen-room-created" style="display:none;"></div>
 
 <!-- 입장 대기 -->
 <div class="screen" id="screen-waiting">
