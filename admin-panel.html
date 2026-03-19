@@ -128,7 +128,7 @@ $("btn-create").addEventListener("click", async()=>{
   const mc=parseInt($("mine-count").value)||15;
   const names=Array.from({length:playerCount},(_,i)=>$("pname-"+i)?.value.trim()||"");
   if(!pw){ showErr("create-err","관리자 비밀번호를 입력하세요."); return; }
-  if(mc<1||mc>300){ showErr("create-err","지뢰 수는 1~300개입니다."); return; }
+  if(!mc){ showErr("create-err","지뢰 수를 선택하세요."); return; }
   if(names.some(n=>!n)){ showErr("create-err","모든 플레이어 이름을 입력하세요."); return; }
   if(new Set(names).size!==playerCount){ showErr("create-err","이름이 중복되었습니다."); return; }
   adminPw=pw;
@@ -445,8 +445,13 @@ input:focus{border-color:#555;}
       <div class="card">
         <input type="password" id="create-pw" placeholder="관리자 비밀번호 설정">
         <div style="display:flex;gap:8px;align-items:center;">
-          <input type="number" id="mine-count" value="15" min="1" max="300" style="width:80px;">
-          <span style="font-size:13px;color:var(--text2);">개 지뢰 (1~300)</span>
+          <select id="mine-count" style="width:110px;">
+            <option value="30">30개</option>
+            <option value="50" selected>50개</option>
+            <option value="80">80개</option>
+            <option value="100">100개</option>
+          </select>
+          <span style="font-size:13px;color:var(--text2);">지뢰</span>
         </div>
         <div>
           <div style="font-size:12px;color:var(--text3);margin-bottom:5px;">플레이어 수: <b id="player-count-disp">4명</b></div>
