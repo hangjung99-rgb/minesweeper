@@ -216,24 +216,31 @@
       </div>`).join("");
   }
 
+  function calcTurns(secs){ return Math.floor(secs/(30*60)); }
+
   function renderMission(){
     const el=$("mission-list");
     const pending=(gameState.players||[]).filter(p=>p.pending);
     if(!pending.length){ el.innerHTML=`<div class="empty">대기 중인 미션 승인이 없어요 👍</div>`; return; }
     el.innerHTML=pending.map(p=>{
       const col=COLORS[p.color%COLORS.length];
-      const lastLog=p.log&&p.log.length?p.log[p.log.length-1]:"미션 정보 없음";
+      const lastLog=p.log&&p.log.length?p.log[p.log.length-1]:"";
+      const mName=p.pendingMission||"";
+      const secs=p.pendingSecs||0;
+      const turns=calcTurns(secs);
+      const h=Math.floor(secs/3600),min=Math.floor((secs%3600)/60);
+      const timeStr=h>0&&min>0?`${h}시간 30분`:h>0?`${h}시간`:min>0?"30분":"";
       return `
       <div class="req-card">
         <div class="req-l">
           <div class="avatar" style="background:${col.bg};color:${col.fg};">${p.name[0].toUpperCase()}</div>
           <div>
             <div class="req-name">${p.name}</div>
-            <div class="req-sub">📚 ${lastLog}</div>
+            <div class="req-sub">📚 ${mName} ${timeStr} → <b style="color:#27500A;">${turns}턴</b> 부여 예정</div>
           </div>
         </div>
         <div class="req-r">
-          <button class="btn-ok" onclick="approveMission('${p.name}')">✅ 1턴 부여</button>
+          <button class="btn-ok" onclick="approveMission('${p.name}')">✅ ${turns}턴 부여</button>
           <button class="btn-no" onclick="rejectMission('${p.name}')">❌ 거절</button>
         </div>
       </div>`;
@@ -277,10 +284,21 @@
   };
   window.approveMission=async name=>{
     const idx=gameState.players.findIndex(p=>p.name===name); if(idx===-1) return;
-    const np=gameState.players.map((pl,i)=>i===idx?{...pl,turns:pl.turns+1,pending:false}:pl);
-    await update(ref(db,`rooms/${ROOM_ID}`),{players:np, msg:`✅ ${name}님에게 1턴 부여!`});
+    const p=gameState.players[idx];
+    const secs=p.pendingSecs||0;
+    const turns=calcTurns(secs)||1;
+    const h=Math.floor(secs/3600),min=Math.floor((secs%3600)/60);
+    const timeStr=h>0&&min>0?`${h}시간 30분`:h>0?`${h}시간`:min>0?"30분":"";
+    const logStr=`${p.pendingMission||""} ${timeStr} → ${turns}턴`;
+    const np=gameState.players.map((pl,i)=>i===idx
+      ?{...pl,turns:pl.turns+turns,pending:false,pendingMission:null,pendingSecs:null,log:[...(pl.log||[]),logStr]}
+      :pl);
+    await update(ref(db,`rooms/${ROOM_ID}`),{
+      players:np,
+      msg:`✅ ${name}님에게 ${turns}턴 부여! (${p.pendingMission||""} ${timeStr})`
+    });
     delete notifiedKeys["mission_"+name];
-    toast(`${name}님 미션 승인 — 1턴 부여!`);
+    toast(`${name}님 미션 승인 — ${turns}턴 부여!`);
   };
   window.rejectMission=async name=>{
     const np=gameState.players.map(pl=>pl.name===name?{...pl,pending:false}:pl);

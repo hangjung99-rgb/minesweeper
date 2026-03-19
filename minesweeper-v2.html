@@ -45,7 +45,12 @@
   let ROOM_ID=null, adminPw="", myName="", gameState=null;
   let isAdmin=false;
   let missionFor=null, selMissionId=null;
-  let approvalFor=null, approvalMission="", approvalSecs=0;
+  let approvalFor=null, approvalMission="", approvalSecs=0, approvalTurns=0;
+
+  // 30분 = 1턴 계산
+  function calcTurns(secs){
+    return Math.floor(secs / (30*60));
+  }
   let playerCount=4;
   let notifPermission=false;
   // 이전에 알림 보낸 요청 추적 (중복 방지)
@@ -140,12 +145,23 @@
   function listenState(){
     onValue(roomRef(),snap=>{
       if(!snap.exists()) return;
+      const prev=gameState;
       gameState=snap.val();
       if(gameState.phase==="game"){
         // 게임 화면이면 렌더
         if(document.getElementById("screen-game").classList.contains("active")) renderGame();
-        // 대기 중인 플레이어 승인됐는지 확인
+        // 대기 중인 플레이어 입장 승인됐는지 확인
         if(document.getElementById("screen-waiting").classList.contains("active")) checkMyApproval();
+        // 미션 승인 대기 화면에 있는 플레이어 — 관리자가 승인하면 게임 화면으로 자동 이동
+        if(document.getElementById("screen-approval").classList.contains("active") && myName){
+          const me=gameState.players.find(p=>p.name===myName);
+          const prevMe=prev&&prev.players?prev.players.find(p=>p.name===myName):null;
+          if(me&&prevMe&&prevMe.pending===true&&me.pending===false){
+            // 관리자가 승인함 → 게임 화면으로 이동
+            showScreen("screen-game");
+            renderGame();
+          }
+        }
         // 관리자 알림 체크
         checkNewNotifs(gameState);
       }
@@ -354,7 +370,16 @@
         el.classList.add("mine-show");el.textContent="💣";
       }
       if(!gs.gameOver&&!gs.gameWon){
-        el.addEventListener("contextmenu",e=>{e.preventDefault();handleFlag(r,c);});
+        el.addEventListener("contextmenu",e=>{
+          e.preventDefault();
+          const myIdx=gameState.players.findIndex(p=>p.name===myName);
+          if(myIdx===-1) return;
+          if(gameState.players[myIdx].turns<=0){
+            setMsg(gameState.players[myIdx].name+"님 턴이 없어요!");
+            return;
+          }
+          handleFlag(r,c);
+        });
         el.addEventListener("click",()=>showPlayerPicker(r,c));
       }
       bd.appendChild(el);
@@ -366,12 +391,34 @@
     const idx=r*COLS+c;
     if(gameState.revealed&&gameState.revealed[idx]) return;
     if(gameState.flagged&&gameState.flagged[idx]) return;
-    $("picker-r").value=r;$("picker-c").value=c;
-    $("picker-btns").innerHTML=gameState.players.map((p,i)=>`
-      <button onclick="pickPlayer(${i})" style="padding:8px 12px;border:0.5px solid ${p.turns>0?"#3B6D11":"#ccc"};border-radius:8px;background:${p.turns>0?"#EAF3DE":"#f8f8f8"};cursor:pointer;display:flex;align-items:center;gap:6px;">
-        ${badge(p.name,p.color)}<span style="font-size:13px;">${p.name} (${p.turns}턴)</span>
-      </button>`).join("");
-    $("player-picker").style.display="block";
+
+    if(isAdmin){
+      // 관리자는 턴 있는 플레이어 중 선택 가능
+      const hasTurn=gameState.players.filter(p=>p.turns>0);
+      if(hasTurn.length===0){setMsg("턴 있는 플레이어가 없어요.");return;}
+      if(hasTurn.length===1){
+        const pi=gameState.players.findIndex(p=>p.name===hasTurn[0].name);
+        handleCellClick(r,c,pi);return;
+      }
+      // 여러 명 있으면 팝업으로 선택
+      $("picker-r").value=r;$("picker-c").value=c;
+      $("picker-btns").innerHTML=gameState.players.map((p,i)=>
+        p.turns<=0?"":`<button onclick="pickPlayer(${i})" style="padding:8px 12px;border:0.5px solid #3B6D11;border-radius:8px;background:#EAF3DE;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          ${badge(p.name,p.color)}<span style="font-size:13px;">${p.name} (${p.turns}턴)</span>
+        </button>`).join("");
+      $("player-picker").style.display="block";
+      return;
+    }
+
+    // 일반 플레이어 — 본인 턴만 사용
+    const myIdx=gameState.players.findIndex(p=>p.name===myName);
+    if(myIdx===-1){setMsg("먼저 방에 입장해야 해요.");return;}
+    const me=gameState.players[myIdx];
+    if(me.turns<=0){
+      setMsg(me.name+"님 턴이 없어요! 미션을 완료하고 승인을 받으세요.");
+      return;
+    }
+    handleCellClick(r,c,myIdx);
   }
   window.pickPlayer=async(i)=>{
     $("player-picker").style.display="none";
@@ -413,7 +460,7 @@
     renderMissionGrid();hideErr("mission-sel-err");
   };
 
-  window.submitMission=()=>{
+  window.submitMission=async()=>{
     if(!selMissionId){showErr("mission-sel-err","미션을 선택하세요.");return;}
     const h=parseInt($("inp-h").value)||0;
     const min=parseInt($("inp-m").value)||0;
@@ -422,28 +469,43 @@
     const m=MISSIONS.find(x=>x.id===selMissionId);
     if(m.maxH&&secs>m.maxH*3600){showErr("time-err",`${m.name}은 최대 ${m.maxH}시간까지만 인정됩니다.`);return;}
     approvalFor=missionFor;approvalMission=m.name;approvalSecs=secs;
+    approvalTurns=calcTurns(secs);
     const timeStr=h>0&&min>0?`${h}시간 30분`:h>0?`${h}시간`:"30분";
-    $("approval-desc").textContent=`${gameState.players[missionFor].name}님이 [${m.name}] 미션을 ${timeStr} 수행했습니다.\n승인하면 1턴이 부여됩니다.`;
+    const pname=gameState.players[missionFor].name;
+    // Firebase에 pending 표시 → 관리자 알림 트리거
+    const newPlayers=gameState.players.map((pl,i)=>i===missionFor?{...pl,pending:true,pendingMission:m.name,pendingSecs:secs}:pl);
+    await update(roomRef(),{players:newPlayers});
+    $("approval-desc").innerHTML=
+      `<b>${pname}</b>님이 <b>[${m.name}]</b> 미션을 <b>${timeStr}</b> 수행했습니다.<br><br>`+
+      `<div style="background:#EAF3DE;border-radius:8px;padding:10px 14px;font-size:15px;text-align:center;color:#27500A;font-weight:500;">`+
+      `🎯 ${approvalTurns}턴 부여 예정 (30분당 1턴)</div>`;
     $("approval-pw").value="";hideErr("approval-err");showScreen("screen-approval");
   };
   window.cancelApproval=()=>showScreen("screen-mission");
 
   window.doApprove=async()=>{
-    if($("approval-pw").value!==adminPw&&$("approval-pw").value!==atob(gameState.adminPwHash||"")){
-      showErr("approval-err","비밀번호가 틀렸습니다");return;
-    }
+    try{
+      const entered=$("approval-pw").value;
+      const correct=adminPw||(()=>{try{return atob(gameState.adminPwHash||"");}catch(e){return gameState.adminPwHash||"";}})();
+      if(entered!==correct){showErr("approval-err","비밀번호가 틀렸습니다");return;}
+    }catch(e){showErr("approval-err","비밀번호 확인 오류");return;}
     await syncState();
     const gs=gameState;
     const h=Math.floor(approvalSecs/3600),min=Math.floor((approvalSecs%3600)/60);
     const timeStr=h>0&&min>0?`${h}시간 30분`:h>0?`${h}시간`:"30분";
+    const turns=approvalTurns>0?approvalTurns:calcTurns(approvalSecs);
+    const logStr=`${approvalMission} ${timeStr} → ${turns}턴`;
     const newPlayers=gs.players.map((pl,i)=>{
       if(i!==approvalFor) return pl;
-      return{...pl,turns:pl.turns+1,pending:false,log:[...(pl.log||[]),`${approvalMission} ${timeStr}`]};
+      return{...pl,turns:pl.turns+turns,pending:false,pendingMission:null,pendingSecs:null,
+             log:[...(pl.log||[]),logStr]};
     });
-    // 승인된 미션 알림 키 삭제 (다음 요청 알림 받기 위해)
     delete notifiedKeys["mission_"+gs.players[approvalFor].name+"_pending"];
-    await update(roomRef(),{players:newPlayers,msg:`✅ ${gs.players[approvalFor].name}님에게 1턴 부여! (${approvalMission} ${timeStr})`});
-    approvalFor=null;clearAdminBadge();showScreen("screen-game");
+    await update(roomRef(),{
+      players:newPlayers,
+      msg:`✅ ${gs.players[approvalFor].name}님에게 ${turns}턴 부여! (${approvalMission} ${timeStr})`
+    });
+    approvalFor=null;approvalTurns=0;clearAdminBadge();showScreen("screen-game");
   };
 
   // ── 관리자 패널 ──
