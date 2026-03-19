@@ -5,464 +5,391 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>관리자 패널 — 지뢰찾기</title>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, update }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDNiGqAegBSED4h-IJjzj9EkTR814Hlf2M",
-    authDomain: "snailbumbroom-13b73.firebaseapp.com",
-    databaseURL: "https://snailbumbroom-13b73-default-rtdb.firebaseio.com",
-    projectId: "snailbumbroom-13b73",
-    storageBucket: "snailbumbroom-13b73.firebasestorage.app",
-    messagingSenderId: "983942434316",
-    appId: "1:983942434316:web:948e08906badf01f2ca829"
+const firebaseConfig = {
+  apiKey: "AIzaSyDNiGqAegBSED4h-IJjzj9EkTR814Hlf2M",
+  authDomain: "snailbumbroom-13b73.firebaseapp.com",
+  databaseURL: "https://snailbumbroom-13b73-default-rtdb.firebaseio.com",
+  projectId: "snailbumbroom-13b73",
+  storageBucket: "snailbumbroom-13b73.firebasestorage.app",
+  messagingSenderId: "983942434316",
+  appId: "1:983942434316:web:948e08906badf01f2ca829"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+const ROWS=20, COLS=20;
+const COLORS=[
+  {bg:"#B5D4F4",fg:"#0C447C"},{bg:"#C0DD97",fg:"#27500A"},
+  {bg:"#FAC775",fg:"#633806"},{bg:"#F4C0D1",fg:"#72243E"},
+  {bg:"#CECBF6",fg:"#3C3489"},{bg:"#9FE1CB",fg:"#085041"},
+  {bg:"#F5C4B3",fg:"#712B13"},{bg:"#D3D1C7",fg:"#2C2C2A"},
+  {bg:"#85B7EB",fg:"#042C53"},{bg:"#97C459",fg:"#173404"},
+  {bg:"#ED93B1",fg:"#4B1528"},{bg:"#EF9F27",fg:"#412402"},
+  {bg:"#5DCAA5",fg:"#04342C"},{bg:"#F09595",fg:"#501313"},
+  {bg:"#7F77DD",fg:"#26215C"}
+];
+
+function calcTurns(secs){ return Math.floor(secs/1800); }
+function fmtTime(secs){
+  const h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60);
+  return h>0&&m>0?`${h}시간 30분`:h>0?`${h}시간`:"30분";
+}
+function timeAgo(ts){
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60) return s+"초 전";
+  if(s<3600) return Math.floor(s/60)+"분 전";
+  return Math.floor(s/3600)+"시간 전";
+}
+
+let ROOM_ID=null, adminPw="", gameState=null;
+let playerCount=4;
+let notifGranted=false, notifiedKeys={};
+
+const $=id=>document.getElementById(id);
+function screen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.style.display="none");
+  $(id).style.display="flex";
+}
+function showErr(id,msg){ $(id).textContent=msg; $(id).style.display="block"; }
+function hideErr(id){ $(id).style.display="none"; }
+function badge(name,ci){
+  const c=COLORS[ci%COLORS.length];
+  return `<div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:${c.bg};color:${c.fg};flex-shrink:0;">${name[0].toUpperCase()}</div>`;
+}
+function roomRef(p=""){ return ref(db,`rooms/${ROOM_ID}${p?"/"+p:""}`); }
+
+// ── 알림 ──
+async function reqNotif(){
+  if(!("Notification" in window)) return;
+  if(Notification.permission==="granted"){notifGranted=true;updateNotifLbl();return;}
+  if(Notification.permission==="denied"){updateNotifLbl();return;}
+  const r=await Notification.requestPermission();
+  notifGranted=(r==="granted"); updateNotifLbl();
+}
+function updateNotifLbl(){
+  const el=$("notif-lbl"); if(!el) return;
+  el.textContent=notifGranted?"🔔 브라우저 알림 켜짐":"🔕 알림 꺼짐 — 브라우저 설정에서 허용해주세요";
+}
+function sendNotif(title,body,tag){
+  if(!notifGranted||document.hasFocus()) return;
+  try{
+    const n=new Notification(title,{body,tag,
+      icon:"https://em-content.zobj.net/source/google/387/bomb_1f4a3.png",
+      requireInteraction:true});
+    n.onclick=()=>{window.focus();n.close();};
+  }catch(e){}
+}
+function fireNotifs(){
+  const gs=gameState; if(!gs) return;
+  Object.entries(gs.pendingJoin||{}).forEach(([name,data])=>{
+    if(!data.approved&&!data.rejected){
+      const key="j_"+name+"_"+data.requestedAt;
+      if(!notifiedKeys[key]){ notifiedKeys[key]=true; sendNotif("🙋 입장 요청",name+"님이 입장 승인을 기다려요!","j_"+name); }
+    }
+  });
+  (gs.players||[]).forEach(p=>{
+    if(p.pending){
+      const key="m_"+p.name;
+      if(!notifiedKeys[key]){ notifiedKeys[key]=true; sendNotif("✅ 미션 승인 요청",p.name+"님이 미션 승인을 요청했어요!","m_"+p.name); }
+    } else { delete notifiedKeys["m_"+p.name]; }
+  });
+}
+
+// ── 플레이어 이름 입력 ──
+function renderNameInputs(){
+  const c=$("player-name-inputs"); if(!c) return;
+  c.innerHTML="";
+  for(let i=0;i<playerCount;i++){
+    const col=COLORS[i%COLORS.length];
+    c.innerHTML+=`<div class="pslot">
+      <div class="pslot-lbl">플레이어 ${i+1}</div>
+      <div class="pslot-row">
+        <div id="pb-${i}" style="width:22px;height:22px;border-radius:50%;background:${col.bg};color:${col.fg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">?</div>
+        <input type="text" id="pname-${i}" placeholder="이름" maxlength="8"
+          oninput="(function(v){const b=document.getElementById('pb-${i}');if(b)b.textContent=v.trim()?v[0].toUpperCase():'?'})(this.value)">
+      </div>
+    </div>`;
+  }
+}
+$("player-count-slider").addEventListener("input",()=>{
+  playerCount=parseInt($("player-count-slider").value);
+  $("player-count-disp").textContent=playerCount+"명";
+  renderNameInputs();
+});
+renderNameInputs();
+
+// ── 방 만들기 ──
+$("btn-create").addEventListener("click", async()=>{
+  const pw=$("create-pw").value.trim();
+  const mc=parseInt($("mine-count").value)||15;
+  const names=Array.from({length:playerCount},(_,i)=>$("pname-"+i)?.value.trim()||"");
+  if(!pw){ showErr("create-err","관리자 비밀번호를 입력하세요."); return; }
+  if(mc<1||mc>300){ showErr("create-err","지뢰 수는 1~300개입니다."); return; }
+  if(names.some(n=>!n)){ showErr("create-err","모든 플레이어 이름을 입력하세요."); return; }
+  if(new Set(names).size!==playerCount){ showErr("create-err","이름이 중복되었습니다."); return; }
+  adminPw=pw;
+  ROOM_ID=Math.random().toString(36).slice(2,8).toUpperCase();
+  const players=names.map((name,i)=>({name,color:i,turns:0,pending:false,pendingMission:null,pendingSecs:null,log:[]}));
+  const init={
+    phase:"game", mines:mc, adminPwHash:btoa(pw), playerCount, players,
+    pendingJoin:{}, board:null,
+    revealed:Array(ROWS*COLS).fill(false),
+    flagged:Array(ROWS*COLS).fill(false),
+    gameOver:false, gameWon:false, firstClick:true, msg:""
   };
-
-  const app = initializeApp(firebaseConfig);
-  const db  = getDatabase(app);
-
-  const ROWS=20, COLS=20;
-  let ROOM_ID=null, adminPw="", gameState=null;
-  let notifGranted=false, notifiedKeys={};
-  let playerCount=4;
-
-  const COLORS=[
-    {bg:"#B5D4F4",fg:"#0C447C"},{bg:"#C0DD97",fg:"#27500A"},
-    {bg:"#FAC775",fg:"#633806"},{bg:"#F4C0D1",fg:"#72243E"},
-    {bg:"#CECBF6",fg:"#3C3489"},{bg:"#9FE1CB",fg:"#085041"},
-    {bg:"#F5C4B3",fg:"#712B13"},{bg:"#D3D1C7",fg:"#2C2C2A"},
-    {bg:"#85B7EB",fg:"#042C53"},{bg:"#97C459",fg:"#173404"},
-    {bg:"#ED93B1",fg:"#4B1528"},{bg:"#EF9F27",fg:"#412402"},
-    {bg:"#5DCAA5",fg:"#04342C"},{bg:"#F09595",fg:"#501313"},
-    {bg:"#7F77DD",fg:"#26215C"}
-  ];
-
-  const $=id=>document.getElementById(id);
-
-  function showScreen(id){
-    document.querySelectorAll(".screen").forEach(s=>s.style.display="none");
-    $(id).style.display="block";
+  $("btn-create").textContent="생성 중..."; $("btn-create").disabled=true;
+  try{
+    await set(ref(db,"rooms/"+ROOM_ID), init);
+    gameState=init;
+    $("created-code").textContent=ROOM_ID;
+    screen("screen-created");
+    await reqNotif();
+    listenState();
+  }catch(e){
+    showErr("create-err","Firebase 오류: "+e.message);
+    $("btn-create").textContent="방 만들기"; $("btn-create").disabled=false;
   }
+});
 
-  // ── 플레이어 수 슬라이더 ──
-  function initSlider(){
-    const slider=$("player-count-slider");
-    if(!slider) return;
-    slider.addEventListener("input",()=>{
-      playerCount=parseInt(slider.value);
-      $("player-count-display").textContent=playerCount+"명";
-      renderNameInputs();
-    });
-    renderNameInputs();
-  }
+// ── 기존 방 로그인 ──
+$("btn-login").addEventListener("click", doLogin);
+$("inp-login-pw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+$("inp-login-rid").addEventListener("keydown",e=>{if(e.key==="Enter")$("inp-login-pw").focus();});
+$("inp-login-rid").addEventListener("input",e=>e.target.value=e.target.value.toUpperCase());
 
-  function renderNameInputs(){
-    const c=$("player-name-inputs"); if(!c) return;
-    c.innerHTML="";
-    for(let i=0;i<playerCount;i++){
-      const col=COLORS[i%COLORS.length];
-      c.innerHTML+=`<div class="pslot">
-        <div class="pslot-label">플레이어 ${i+1}</div>
-        <div class="pslot-row">
-          <div style="width:24px;height:24px;border-radius:50%;background:${col.bg};color:${col.fg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;" id="pb-${i}">?</div>
-          <input type="text" placeholder="이름 입력" maxlength="8" oninput="updatePBadge(${i},this.value)" id="pname-${i}" style="flex:1;">
-        </div>
-      </div>`;
-    }
-  }
-  window.updatePBadge=(i,v)=>{const b=$("pb-"+i);if(b)b.textContent=v.trim()?v.trim()[0].toUpperCase():"?";};
+async function doLogin(){
+  const rid=$("inp-login-rid").value.trim().toUpperCase();
+  const pw=$("inp-login-pw").value;
+  if(!rid||!pw){showErr("login-err","방 코드와 비밀번호를 입력하세요.");return;}
+  $("btn-login").textContent="확인 중..."; $("btn-login").disabled=true;
+  ROOM_ID=rid;
+  try{
+    const snap=await get(ref(db,"rooms/"+ROOM_ID));
+    if(!snap.exists()){showErr("login-err","존재하지 않는 방입니다.");reset();return;}
+    const gs=snap.val();
+    let correct="";
+    try{correct=atob(gs.adminPwHash||"");}catch(e){correct=gs.adminPwHash||"";}
+    if(pw!==correct){showErr("login-err","비밀번호가 틀렸습니다.");reset();return;}
+    adminPw=pw; gameState=gs;
+    $("room-code-lbl").textContent=ROOM_ID;
+    screen("screen-dash");
+    await reqNotif();
+    listenState(); renderAll();
+  }catch(e){showErr("login-err","오류: "+e.message);reset();}
+  function reset(){$("btn-login").textContent="로그인 →";$("btn-login").disabled=false;}
+}
 
-  // ── 방 만들기 ──
-  async function doCreateRoom(){
-    const pw=$("create-admin-pw").value.trim();
-    const mc=parseInt($("mine-count-input").value)||15;
-    const names=Array.from({length:playerCount},(_,i)=>$("pname-"+i)?.value.trim()||"");
-    if(!pw){showCreateErr("관리자 비밀번호를 입력하세요.");return;}
-    if(mc<1||mc>300){showCreateErr("지뢰 수는 1~300개입니다.");return;}
-    if(names.some(n=>!n)){showCreateErr("모든 플레이어 이름을 입력하세요.");return;}
-    if(new Set(names).size!==playerCount){showCreateErr("이름이 중복되었습니다.");return;}
-    adminPw=pw;
-    ROOM_ID=Math.random().toString(36).slice(2,8).toUpperCase();
-    const players=names.map((name,i)=>({name,color:i,turns:0,pending:false,log:[]}));
-    const initState={
-      phase:"game",mines:mc,adminPwHash:btoa(pw),playerCount,players,
-      pendingJoin:{},board:null,
-      revealed:Array(ROWS*COLS).fill(false),
-      flagged:Array(ROWS*COLS).fill(false),
-      gameOver:false,gameWon:false,firstClick:true,msg:""
-    };
-    $("btn-create-room").textContent="생성 중...";
-    $("btn-create-room").disabled=true;
-    try{
-      await set(ref(db,"rooms/"+ROOM_ID), initState);
-      gameState=initState;
-      $("created-room-code").textContent=ROOM_ID;
-      showScreen("screen-created");
-      await requestNotif();
-      listenState();
-      renderAll();
-    }catch(e){
-      showCreateErr("Firebase 오류: "+e.message);
-      $("btn-create-room").textContent="방 만들기";
-      $("btn-create-room").disabled=false;
-    }
-  }
+$("btn-go-dash").addEventListener("click",()=>{
+  $("room-code-lbl").textContent=ROOM_ID;
+  screen("screen-dash");
+  renderAll();
+});
 
-  function showCreateErr(msg){
-    const el=$("create-err");
-    el.textContent=msg; el.style.display="block";
-  }
+// ── 실시간 ──
+function listenState(){
+  onValue(ref(db,"rooms/"+ROOM_ID),snap=>{
+    if(!snap.exists()) return;
+    gameState=snap.val();
+    if($("screen-dash").style.display!=="none") renderAll();
+    fireNotifs();
+  });
+}
 
-  function showErr(msg){
-    $("login-err").textContent=msg;
-    $("login-err").style.display="block";
-  }
+// ── 렌더 ──
+function renderAll(){ renderJoin(); renderMission(); renderPlayers(); updateBadges(); }
 
-  // 비밀번호 검증 — atob 실패해도 안전하게 처리
-  function checkPw(entered, hash){
-    try{
-      return entered === atob(hash);
-    }catch(e){
-      // atob 실패 시 해시 직접 비교
-      return entered === hash;
-    }
-  }
+function updateBadges(){
+  const gs=gameState; if(!gs) return;
+  const jc=Object.values(gs.pendingJoin||{}).filter(r=>!r.approved&&!r.rejected).length;
+  const mc=(gs.players||[]).filter(p=>p.pending).length;
+  $("badge-join").textContent=jc; $("badge-join").style.display=jc>0?"inline-flex":"none";
+  $("badge-mission").textContent=mc; $("badge-mission").style.display=mc>0?"inline-flex":"none";
+  document.title=(jc+mc>0?`(${jc+mc}) `:"")+"관리자 패널";
+}
 
-  // ── 로그인 ──
-  async function doLogin(){
-    const rid = $("inp-room-id").value.trim().toUpperCase();
-    const pw  = $("inp-admin-pw").value;
+function renderJoin(){
+  const el=$("join-list");
+  const pending=Object.values(gameState.pendingJoin||{}).filter(r=>!r.approved&&!r.rejected);
+  if(!pending.length){el.innerHTML=`<div class="empty">대기 중인 입장 요청이 없어요 👍</div>`;return;}
+  el.innerHTML=pending.map(r=>`
+    <div class="req-card">
+      <div class="req-l">
+        <div class="av">${r.name[0].toUpperCase()}</div>
+        <div><div class="req-name">${r.name}</div><div class="req-sub">${timeAgo(r.requestedAt)}</div></div>
+      </div>
+      <div class="req-r">
+        <button class="btn-ok" onclick="approveJoin('${r.name}')">✅ 승인</button>
+        <button class="btn-no" onclick="rejectJoin('${r.name}')">❌ 거절</button>
+      </div>
+    </div>`).join("");
+}
 
-    if(!rid){ showErr("방 코드를 입력하세요."); return; }
-    if(!pw) { showErr("비밀번호를 입력하세요."); return; }
-
-    $("btn-login").textContent="확인 중...";
-    $("btn-login").disabled=true;
-
-    ROOM_ID=rid;
-    try{
-      const snap=await get(ref(db,`rooms/${ROOM_ID}`));
-
-      if(!snap.exists()){
-        showErr("존재하지 않는 방입니다. 방 코드를 확인해주세요.");
-        $("btn-login").textContent="로그인 →";
-        $("btn-login").disabled=false;
-        return;
-      }
-
-      const gs=snap.val();
-
-      if(!checkPw(pw, gs.adminPwHash||"")){
-        showErr("비밀번호가 틀렸습니다.");
-        $("btn-login").textContent="로그인 →";
-        $("btn-login").disabled=false;
-        return;
-      }
-
-      // 로그인 성공
-      adminPw=pw;
-      gameState=gs;
-      $("room-id-label").textContent=ROOM_ID;
-      showScreen("screen-dash");
-      await requestNotif();
-      listenState();
-      renderAll();
-
-    }catch(e){
-      showErr("오류: "+e.message);
-      console.error("Login error:", e);
-      $("btn-login").textContent="로그인 →";
-      $("btn-login").disabled=false;
-    }
-  }
-
-  $("btn-login").addEventListener("click", doLogin);
-  $("inp-admin-pw").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
-  $("inp-room-id").addEventListener("keydown",  e=>{ if(e.key==="Enter") doLogin(); });
-  $("inp-room-id").addEventListener("input", e=>{ e.target.value=e.target.value.toUpperCase(); });
-  // 방 만들기 버튼
-  const btnCreate=$("btn-create-room");
-  if(btnCreate) btnCreate.addEventListener("click", doCreateRoom);
-  initSlider();
-
-  // ── 알림 ──
-  async function requestNotif(){
-    if(!("Notification" in window)){ updateNotifLabel("미지원"); return; }
-    if(Notification.permission==="granted"){ notifGranted=true; updateNotifLabel("on"); return; }
-    if(Notification.permission==="denied"){ updateNotifLabel("off"); return; }
-    const r=await Notification.requestPermission();
-    notifGranted=(r==="granted");
-    updateNotifLabel(notifGranted?"on":"off");
-  }
-
-  function updateNotifLabel(state){
-    const el=$("notif-label"); if(!el) return;
-    if(state==="on")       el.textContent="🔔 브라우저 알림 켜짐";
-    else if(state==="off") el.textContent="🔕 알림 차단됨 — 브라우저 설정에서 허용해주세요";
-    else if(state==="미지원") el.textContent="알림 미지원 브라우저";
-    else el.textContent="🔔 알림 허용 필요";
-  }
-
-  function sendNotif(title,body,tag){
-    if(!notifGranted||document.hasFocus()) return;
-    try{
-      const n=new Notification(title,{body,tag,
-        icon:"https://em-content.zobj.net/source/google/387/bomb_1f4a3.png",
-        requireInteraction:true});
-      n.onclick=()=>{ window.focus(); n.close(); };
-    }catch(e){}
-  }
-
-  // ── 실시간 감지 ──
-  function listenState(){
-    onValue(ref(db,"rooms/"+ROOM_ID), snap=>{
-      if(!snap.exists()) return;
-      gameState=snap.val();
-      if(document.getElementById("screen-dash")&&document.getElementById("screen-dash").style.display!=="none") renderAll();
-      fireNotifs();
-    });
-  }
-
-  function fireNotifs(){
-    const gs=gameState; if(!gs) return;
-    Object.entries(gs.pendingJoin||{}).forEach(([name,data])=>{
-      if(!data.approved&&!data.rejected){
-        const key="join_"+name+"_"+data.requestedAt;
-        if(!notifiedKeys[key]){
-          notifiedKeys[key]=true;
-          sendNotif("🙋 입장 요청", name+"님이 입장 승인을 기다리고 있어요!", "join_"+name);
-        }
-      }
-    });
-    (gs.players||[]).forEach(p=>{
-      if(p.pending){
-        const key="mission_"+p.name;
-        if(!notifiedKeys[key]){
-          notifiedKeys[key]=true;
-          sendNotif("✅ 미션 승인 요청", p.name+"님이 미션 승인을 요청했어요!", "mission_"+p.name);
-        }
-      } else { delete notifiedKeys["mission_"+p.name]; }
-    });
-  }
-
-  // ── 렌더 ──
-  function renderAll(){
-    renderJoin();
-    renderMission();
-    renderPlayers();
-    updateBadges();
-  }
-
-  function updateBadges(){
-    const gs=gameState; if(!gs) return;
-    const jc=Object.values(gs.pendingJoin||{}).filter(r=>!r.approved&&!r.rejected).length;
-    const mc=(gs.players||[]).filter(p=>p.pending).length;
-    const bj=$("badge-join"), bm=$("badge-mission");
-    bj.textContent=jc; bj.style.display=jc>0?"inline-flex":"none";
-    bm.textContent=mc; bm.style.display=mc>0?"inline-flex":"none";
-    document.title=(jc+mc>0?`(${jc+mc}) `:"")+"관리자 패널";
-  }
-
-  function timeAgo(ts){
-    const s=Math.floor((Date.now()-ts)/1000);
-    if(s<60) return s+"초 전";
-    if(s<3600) return Math.floor(s/60)+"분 전";
-    return Math.floor(s/3600)+"시간 전";
-  }
-
-  function renderJoin(){
-    const el=$("join-list");
-    const pending=Object.values(gameState.pendingJoin||{}).filter(r=>!r.approved&&!r.rejected);
-    if(!pending.length){ el.innerHTML=`<div class="empty">대기 중인 입장 요청이 없어요 👍</div>`; return; }
-    el.innerHTML=pending.map(r=>`
-      <div class="req-card">
-        <div class="req-l">
-          <div class="avatar">${r.name[0].toUpperCase()}</div>
-          <div>
-            <div class="req-name">${r.name}</div>
-            <div class="req-sub">${timeAgo(r.requestedAt)}</div>
-          </div>
-        </div>
-        <div class="req-r">
-          <button class="btn-ok" onclick="approveJoin('${r.name}')">✅ 승인</button>
-          <button class="btn-no" onclick="rejectJoin('${r.name}')">❌ 거절</button>
-        </div>
-      </div>`).join("");
-  }
-
-  function calcTurns(secs){ return Math.floor(secs/(30*60)); }
-
-  function renderMission(){
-    const el=$("mission-list");
-    const pending=(gameState.players||[]).filter(p=>p.pending);
-    if(!pending.length){ el.innerHTML=`<div class="empty">대기 중인 미션 승인이 없어요 👍</div>`; return; }
-    el.innerHTML=pending.map(p=>{
-      const col=COLORS[p.color%COLORS.length];
-      const lastLog=p.log&&p.log.length?p.log[p.log.length-1]:"";
-      const mName=p.pendingMission||"";
-      const secs=p.pendingSecs||0;
-      const turns=calcTurns(secs);
-      const h=Math.floor(secs/3600),min=Math.floor((secs%3600)/60);
-      const timeStr=h>0&&min>0?`${h}시간 30분`:h>0?`${h}시간`:min>0?"30분":"";
-      return `
-      <div class="req-card">
-        <div class="req-l">
-          <div class="avatar" style="background:${col.bg};color:${col.fg};">${p.name[0].toUpperCase()}</div>
-          <div>
-            <div class="req-name">${p.name}</div>
-            <div class="req-sub">📚 ${mName} ${timeStr} → <b style="color:#27500A;">${turns}턴</b> 부여 예정</div>
-          </div>
-        </div>
-        <div class="req-r">
-          <button class="btn-ok" onclick="approveMission('${p.name}')">✅ ${turns}턴 부여</button>
-          <button class="btn-no" onclick="rejectMission('${p.name}')">❌ 거절</button>
-        </div>
-      </div>`;
-    }).join("");
-  }
-
-  function renderPlayers(){
-    const el=$("player-list");
-    if(!gameState||!gameState.players){ el.innerHTML=""; return; }
-    el.innerHTML=gameState.players.map((p,i)=>{
-      const col=COLORS[p.color%COLORS.length];
-      const lastLog=p.log&&p.log.length?"최근: "+p.log[p.log.length-1]:"미션 기록 없음";
-      return `
-      <div class="player-row">
-        <div class="req-l">
-          <div class="avatar" style="background:${col.bg};color:${col.fg};">${p.name[0].toUpperCase()}</div>
-          <div>
-            <div class="req-name">${p.name}</div>
-            <div class="req-sub">${lastLog}</div>
-          </div>
-        </div>
-        <div class="req-r">
-          <div class="turn-chip ${p.turns>0?"on":""}">${p.turns}턴</div>
-          <button class="btn-plus"  onclick="giveTurn(${i})">+1</button>
-          <button class="btn-minus" onclick="removeTurn(${i})">−1</button>
-        </div>
-      </div>`;
-    }).join("");
-  }
-
-  // ── 액션 ──
-  window.approveJoin=async name=>{
-    await update(ref(db,`rooms/${ROOM_ID}/pendingJoin/${name}`),{approved:true});
-    delete notifiedKeys["join_"+name];
-    toast(`${name}님 입장 승인!`);
-  };
-  window.rejectJoin=async name=>{
-    await update(ref(db,`rooms/${ROOM_ID}/pendingJoin/${name}`),{rejected:true});
-    delete notifiedKeys["join_"+name];
-    toast(`${name}님 입장 거절`);
-  };
-  window.approveMission=async name=>{
-    const idx=gameState.players.findIndex(p=>p.name===name); if(idx===-1) return;
-    const p=gameState.players[idx];
+function renderMission(){
+  const el=$("mission-list");
+  const pending=(gameState.players||[]).filter(p=>p.pending);
+  if(!pending.length){el.innerHTML=`<div class="empty">대기 중인 미션 승인이 없어요 👍</div>`;return;}
+  el.innerHTML=pending.map(p=>{
+    const col=COLORS[p.color%COLORS.length];
     const secs=p.pendingSecs||0;
-    const turns=calcTurns(secs)||1;
-    const h=Math.floor(secs/3600),min=Math.floor((secs%3600)/60);
-    const timeStr=h>0&&min>0?`${h}시간 30분`:h>0?`${h}시간`:min>0?"30분":"";
-    const logStr=`${p.pendingMission||""} ${timeStr} → ${turns}턴`;
-    const np=gameState.players.map((pl,i)=>i===idx
-      ?{...pl,turns:pl.turns+turns,pending:false,pendingMission:null,pendingSecs:null,log:[...(pl.log||[]),logStr]}
-      :pl);
-    await update(ref(db,`rooms/${ROOM_ID}`),{
-      players:np,
-      msg:`✅ ${name}님에게 ${turns}턴 부여! (${p.pendingMission||""} ${timeStr})`
-    });
-    delete notifiedKeys["mission_"+name];
-    toast(`${name}님 미션 승인 — ${turns}턴 부여!`);
-  };
-  window.rejectMission=async name=>{
-    const np=gameState.players.map(pl=>pl.name===name?{...pl,pending:false}:pl);
-    await update(ref(db,`rooms/${ROOM_ID}`),{players:np, msg:`${name}님 미션이 거절되었습니다.`});
-    delete notifiedKeys["mission_"+name];
-    toast(`${name}님 미션 거절`);
-  };
-  window.giveTurn=async i=>{
-    const np=gameState.players.map((pl,j)=>j===i?{...pl,turns:pl.turns+1}:pl);
-    await update(ref(db,`rooms/${ROOM_ID}`),{players:np, msg:`관리자: ${gameState.players[i].name}님 +1턴`});
-    toast(`${gameState.players[i].name}님 +1턴`);
-  };
-  window.removeTurn=async i=>{
-    const np=gameState.players.map((pl,j)=>j===i?{...pl,turns:Math.max(0,pl.turns-1)}:pl);
-    await update(ref(db,`rooms/${ROOM_ID}`),{players:np});
-    toast(`${gameState.players[i].name}님 -1턴`);
-  };
+    const turns=calcTurns(secs);
+    const timeStr=secs>0?fmtTime(secs):"";
+    return `
+    <div class="req-card">
+      <div class="req-l">
+        <div class="av" style="background:${col.bg};color:${col.fg};">${p.name[0].toUpperCase()}</div>
+        <div>
+          <div class="req-name">${p.name}</div>
+          <div class="req-sub">📚 ${p.pendingMission||""} ${timeStr}
+            <span style="color:#27500A;font-weight:600;"> → ${turns}턴</span>
+          </div>
+        </div>
+      </div>
+      <div class="req-r">
+        <button class="btn-ok" onclick="approveMission('${p.name}')">✅ ${turns}턴 부여</button>
+        <button class="btn-no" onclick="rejectMission('${p.name}')">❌ 거절</button>
+      </div>
+    </div>`;
+  }).join("");
+}
 
-  // ── 탭 ──
-  window.switchTab=tab=>{
-    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
-    document.querySelectorAll(".tab-pane").forEach(c=>c.style.display="none");
-    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add("active");
-    $("pane-"+tab).style.display="block";
-  };
+function renderPlayers(){
+  const el=$("player-list");
+  if(!gameState||!gameState.players){el.innerHTML="";return;}
+  el.innerHTML=gameState.players.map((p,i)=>{
+    const col=COLORS[p.color%COLORS.length];
+    const lastLog=p.log&&p.log.length?"최근: "+p.log[p.log.length-1]:"기록 없음";
+    return `
+    <div class="player-row">
+      <div class="req-l">
+        <div class="av" style="background:${col.bg};color:${col.fg};">${p.name[0].toUpperCase()}</div>
+        <div><div class="req-name">${p.name}</div><div class="req-sub">${lastLog}</div></div>
+      </div>
+      <div class="req-r">
+        <div class="turn-chip ${p.turns>0?"on":""}">${p.turns}턴</div>
+        <button class="btn-plus" onclick="giveTurn(${i})">+1</button>
+        <button class="btn-minus" onclick="removeTurn(${i})">−1</button>
+      </div>
+    </div>`;
+  }).join("");
+}
 
-  // ── 탭 전환 (로그인 화면) ──
-  window.switchLoginTab=tab=>{
-    $("panel-create").style.display=tab==="create"?"block":"none";
-    $("panel-login").style.display=tab==="login"?"block":"none";
-    $("tab-create").style.background=tab==="create"?"#1a1a1a":"var(--bg2)";
-    $("tab-create").style.color=tab==="create"?"#fff":"var(--text2)";
-    $("tab-login").style.background=tab==="login"?"#1a1a1a":"var(--bg2)";
-    $("tab-login").style.color=tab==="login"?"#fff":"var(--text2)";
-  };
+// ── 액션 ──
+window.approveJoin=async name=>{
+  await update(ref(db,`rooms/${ROOM_ID}/pendingJoin/${name}`),{approved:true});
+  delete notifiedKeys["j_"+name]; toast(name+"님 입장 승인!");
+};
+window.rejectJoin=async name=>{
+  await update(ref(db,`rooms/${ROOM_ID}/pendingJoin/${name}`),{rejected:true});
+  delete notifiedKeys["j_"+name]; toast(name+"님 입장 거절");
+};
+window.approveMission=async name=>{
+  const idx=gameState.players.findIndex(p=>p.name===name); if(idx===-1) return;
+  const p=gameState.players[idx];
+  const secs=p.pendingSecs||0;
+  const turns=calcTurns(secs)||1;
+  const timeStr=secs>0?fmtTime(secs):"";
+  const logStr=`${p.pendingMission||""} ${timeStr} → ${turns}턴`;
+  const np=gameState.players.map((pl,i)=>i===idx
+    ?{...pl,turns:pl.turns+turns,pending:false,pendingMission:null,pendingSecs:null,log:[...(pl.log||[]),logStr]}
+    :pl);
+  await update(ref(db,"rooms/"+ROOM_ID),{
+    players:np, msg:`✅ ${name}님에게 ${turns}턴 부여! (${p.pendingMission||""} ${timeStr})`
+  });
+  delete notifiedKeys["m_"+name]; toast(`${name}님 ${turns}턴 부여!`);
+};
+window.rejectMission=async name=>{
+  const np=gameState.players.map(pl=>pl.name===name?{...pl,pending:false,pendingMission:null,pendingSecs:null}:pl);
+  await update(ref(db,"rooms/"+ROOM_ID),{players:np, msg:`${name}님 미션이 거절되었습니다.`});
+  delete notifiedKeys["m_"+name]; toast(name+"님 미션 거절");
+};
+window.giveTurn=async i=>{
+  const np=gameState.players.map((pl,j)=>j===i?{...pl,turns:pl.turns+1}:pl);
+  await update(ref(db,"rooms/"+ROOM_ID),{players:np, msg:`관리자: ${gameState.players[i].name}님 +1턴`});
+  toast(gameState.players[i].name+"님 +1턴");
+};
+window.removeTurn=async i=>{
+  const np=gameState.players.map((pl,j)=>j===i?{...pl,turns:Math.max(0,pl.turns-1)}:pl);
+  await update(ref(db,"rooms/"+ROOM_ID),{players:np});
+  toast(gameState.players[i].name+"님 -1턴");
+};
 
-  // 방 생성 완료 → 대시보드
-  window.goDashboard=()=>{
-    $("room-id-label").textContent=ROOM_ID;
-    showScreen("screen-dash");
-    renderAll();
-  };
+// ── 탭 ──
+window.switchTab=tab=>{
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tab-pane").forEach(p=>p.style.display="none");
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add("active");
+  $("pane-"+tab).style.display="block";
+};
 
-  // ── 토스트 ──
-  function toast(msg){
-    const t=document.createElement("div");
-    t.className="toast"; t.textContent=msg;
-    document.body.appendChild(t);
-    setTimeout(()=>t.classList.add("show"),10);
-    setTimeout(()=>{ t.classList.remove("show"); setTimeout(()=>t.remove(),300); },2500);
-  }
+// ── 로그인 탭 전환 ──
+window.switchLoginTab=tab=>{
+  $("panel-create").style.display=tab==="create"?"block":"none";
+  $("panel-login").style.display=tab==="login"?"block":"none";
+  $("ltab-create").classList.toggle("active",tab==="create");
+  $("ltab-login").classList.toggle("active",tab==="login");
+};
+
+// ── 토스트 ──
+function toast(msg){
+  const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.classList.add("show"),10);
+  setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),300);},2500);
+}
 </script>
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --bg:#fff;--bg2:#f5f5f3;--bg3:#ebebeb;
-  --text:#1a1a1a;--text2:#666;--text3:#aaa;
-  --border:#e0e0e0;--border2:#ccc;
-  --r:8px;--rlg:12px;
-}
-@media(prefers-color-scheme:dark){
-  :root{--bg:#1a1a1a;--bg2:#252525;--bg3:#303030;--text:#f0f0f0;--text2:#aaa;--text3:#666;--border:#333;--border2:#444;}
-}
+:root{--bg:#fff;--bg2:#f5f5f3;--bg3:#ebebeb;--text:#1a1a1a;--text2:#666;--text3:#aaa;--border:#e0e0e0;--border2:#ccc;--r:8px;--rlg:12px;}
+@media(prefers-color-scheme:dark){:root{--bg:#1a1a1a;--bg2:#252525;--bg3:#303030;--text:#f0f0f0;--text2:#aaa;--text3:#666;--border:#333;--border2:#444;}}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg2);color:var(--text);min-height:100vh;}
-
-.screen{display:none;}
+.screen{display:none;flex-direction:column;min-height:100vh;}
 
 /* 로그인 */
-#screen-login{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem;}
-.login-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);padding:2rem;width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px;}
+#screen-login{align-items:center;justify-content:center;padding:1.5rem;}
+.login-wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:16px;}
 .login-title{font-size:20px;font-weight:600;text-align:center;}
-.login-sub{font-size:12px;color:var(--text2);text-align:center;line-height:1.6;}
-input[type=text],input[type=password]{width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:14px;outline:none;}
+
+/* 탭 */
+.ltabs{display:flex;border:0.5px solid var(--border2);border-radius:var(--r);overflow:hidden;}
+.ltab{flex:1;padding:11px;font-size:13px;border:none;background:var(--bg2);color:var(--text2);cursor:pointer;}
+.ltab.active{background:var(--text);color:var(--bg);font-weight:500;}
+
+/* 카드 */
+.card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);padding:1.25rem;display:flex;flex-direction:column;gap:10px;}
+input[type=text],input[type=password],input[type=number]{width:100%;padding:9px 11px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:14px;outline:none;}
 input:focus{border-color:#555;}
 .btn-main{width:100%;padding:12px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:14px;font-weight:500;cursor:pointer;}
 .btn-main:hover{opacity:.85;}
-.btn-main:disabled{opacity:.5;cursor:not-allowed;}
-#login-err{font-size:12px;color:#E24B4A;display:none;padding:6px 10px;background:#FCEBEB;border-radius:var(--r);}
+.btn-main:disabled{opacity:.4;cursor:not-allowed;}
+.err-box{font-size:12px;color:#E24B4A;padding:7px 10px;background:#FCEBEB;border-radius:var(--r);display:none;}
+
+/* 슬라이더 */
+.slider-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:2px;}
+.pslots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;}
+.pslot{border:0.5px solid var(--border2);border-radius:var(--r);padding:8px;}
+.pslot-lbl{font-size:11px;color:var(--text3);margin-bottom:4px;}
+.pslot-row{display:flex;gap:6px;align-items:center;}
+.pslot-row input{flex:1;padding:6px 8px;font-size:13px;}
+
+/* 방 생성 완료 */
+#screen-created{align-items:center;justify-content:center;padding:1.5rem;}
+.created-wrap{width:100%;max-width:360px;display:flex;flex-direction:column;gap:16px;text-align:center;}
+.big-code{font-size:48px;font-weight:700;letter-spacing:8px;padding:1rem;background:var(--bg2);border-radius:var(--rlg);border:0.5px solid var(--border2);}
 
 /* 대시보드 */
-#screen-dash{max-width:680px;margin:0 auto;padding:1rem;}
-.dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+#screen-dash{max-width:680px;width:100%;margin:0 auto;padding:1rem;gap:12px;}
+.dash-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 .dash-title{font-size:18px;font-weight:600;}
 .dash-sub{font-size:11px;color:var(--text3);margin-top:3px;}
-.room-pill{font-size:12px;padding:5px 14px;border-radius:20px;background:var(--bg);border:0.5px solid var(--border);color:var(--text2);letter-spacing:3px;font-weight:700;white-space:nowrap;}
+.room-pill{font-size:13px;padding:5px 14px;border-radius:20px;background:var(--bg);border:0.5px solid var(--border);color:var(--text2);letter-spacing:3px;font-weight:700;}
 
-/* 탭 */
-.tabs{display:flex;border:0.5px solid var(--border);border-radius:var(--rlg);overflow:hidden;margin-bottom:14px;background:var(--bg);}
+/* 탭 네비 */
+.tabs{display:flex;border:0.5px solid var(--border);border-radius:var(--rlg);overflow:hidden;background:var(--bg);}
 .tab-btn{flex:1;padding:13px 6px;font-size:13px;border:none;background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .1s;}
 .tab-btn:not(:last-child){border-right:0.5px solid var(--border);}
 .tab-btn.active{background:var(--text);color:var(--bg);font-weight:500;}
@@ -471,7 +398,7 @@ input:focus{border-color:#555;}
 .tab-btn.active .badge{background:rgba(255,255,255,0.25);color:var(--bg);}
 .tab-btn:not(.active) .badge{background:#E24B4A;color:#fff;}
 
-/* 탭 패널 */
+/* 패널 */
 .tab-pane{display:none;}
 .pane-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);padding:1.25rem;}
 .pane-title{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:12px;}
@@ -482,7 +409,7 @@ input:focus{border-color:#555;}
 .req-card:last-child,.player-row:last-child{margin-bottom:0;}
 .req-l{display:flex;align-items:center;gap:10px;}
 .req-r{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-.avatar{width:36px;height:36px;border-radius:50%;background:#E6F1FB;color:#0C447C;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;}
+.av{width:34px;height:34px;border-radius:50%;background:#E6F1FB;color:#0C447C;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;}
 .req-name{font-size:14px;font-weight:500;}
 .req-sub{font-size:11px;color:var(--text3);margin-top:2px;}
 .btn-ok{padding:6px 14px;border:0.5px solid #3B6D11;border-radius:var(--r);background:#EAF3DE;color:#27500A;font-size:12px;font-weight:500;cursor:pointer;}
@@ -498,69 +425,67 @@ input:focus{border-color:#555;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:#1a1a1a;color:#fff;padding:10px 22px;border-radius:24px;font-size:13px;opacity:0;transition:all .25s;z-index:999;white-space:nowrap;pointer-events:none;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 @media(prefers-color-scheme:dark){.toast{background:#f0f0f0;color:#1a1a1a;}}
-.pslots{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.pslot{border:0.5px solid var(--border2);border-radius:var(--r);padding:8px;}
-.pslot-label{font-size:11px;color:var(--text3);margin-bottom:4px;}
-.pslot-row{display:flex;gap:6px;align-items:center;}
-.pslot-row input{flex:1;padding:6px 8px;font-size:13px;}
 </style>
 </head>
 <body>
 
 <!-- 로그인 -->
 <div id="screen-login" class="screen" style="display:flex;">
-  <div class="login-card" style="max-width:420px;">
-    <div style="font-size:36px;text-align:center;">💣</div>
+  <div class="login-wrap">
+    <div style="font-size:40px;text-align:center;">💣</div>
     <div class="login-title">관리자 패널</div>
 
-    <!-- 탭 -->
-    <div style="display:flex;border:0.5px solid var(--border2);border-radius:8px;overflow:hidden;">
-      <button id="tab-create" onclick="switchLoginTab('create')"
-        style="flex:1;padding:10px;border:none;background:#1a1a1a;color:#fff;font-size:13px;font-weight:500;cursor:pointer;">새 방 만들기</button>
-      <button id="tab-login" onclick="switchLoginTab('login')"
-        style="flex:1;padding:10px;border:none;background:var(--bg2);color:var(--text2);font-size:13px;cursor:pointer;">기존 방 입장</button>
+    <div class="ltabs">
+      <button class="ltab active" id="ltab-create" onclick="switchLoginTab('create')">새 방 만들기</button>
+      <button class="ltab" id="ltab-login" onclick="switchLoginTab('login')">기존 방 로그인</button>
     </div>
 
-    <!-- 방 만들기 패널 -->
+    <!-- 방 만들기 -->
     <div id="panel-create">
-      <input type="password" id="create-admin-pw" placeholder="관리자 비밀번호 설정">
-      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
-        <input type="number" id="mine-count-input" value="15" min="1" max="300" style="width:90px;">
-        <span style="font-size:13px;color:var(--text2);">개 지뢰</span>
+      <div class="card">
+        <input type="password" id="create-pw" placeholder="관리자 비밀번호 설정">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="number" id="mine-count" value="15" min="1" max="300" style="width:80px;">
+          <span style="font-size:13px;color:var(--text2);">개 지뢰 (1~300)</span>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:5px;">플레이어 수: <b id="player-count-disp">4명</b></div>
+          <input type="range" id="player-count-slider" min="2" max="15" value="4" style="width:100%;">
+          <div class="slider-row"><span>2명</span><span>15명</span></div>
+        </div>
+        <div id="player-name-inputs" class="pslots"></div>
+        <div class="err-box" id="create-err"></div>
+        <button class="btn-main" id="btn-create">방 만들기 →</button>
       </div>
-      <div style="margin-top:10px;">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">플레이어 수: <b id="player-count-display">4명</b></div>
-        <input type="range" id="player-count-slider" min="2" max="15" value="4" style="width:100%;">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:2px;"><span>2명</span><span>15명</span></div>
-      </div>
-      <div id="player-name-inputs" class="pslots" style="margin-top:10px;"></div>
-      <div id="create-err" style="font-size:12px;color:#E24B4A;display:none;margin-top:6px;padding:6px 10px;background:#FCEBEB;border-radius:8px;"></div>
-      <button class="btn-main" id="btn-create-room" style="margin-top:12px;">방 만들기 →</button>
     </div>
 
-    <!-- 기존 방 로그인 패널 -->
+    <!-- 기존 방 로그인 -->
     <div id="panel-login" style="display:none;">
-      <div class="login-sub" style="margin-bottom:8px;">이미 만들어진 방의 코드와 비밀번호를 입력하세요</div>
-      <input type="text" id="inp-room-id" placeholder="방 코드 (6자리)" maxlength="6"
-             style="letter-spacing:4px;font-weight:700;text-align:center;text-transform:uppercase;margin-bottom:8px;">
-      <input type="password" id="inp-admin-pw" placeholder="관리자 비밀번호">
-      <div id="login-err" style="font-size:12px;color:#E24B4A;display:none;margin-top:6px;padding:6px 10px;background:#FCEBEB;border-radius:8px;"></div>
-      <button class="btn-main" id="btn-login" style="margin-top:10px;">로그인 →</button>
+      <div class="card">
+        <div style="font-size:12px;color:var(--text3);">이미 만들어진 방에 관리자로 입장합니다</div>
+        <input type="text" id="inp-login-rid" placeholder="방 코드 (6자리)"
+          style="text-align:center;letter-spacing:5px;font-weight:700;text-transform:uppercase;">
+        <input type="password" id="inp-login-pw" placeholder="관리자 비밀번호">
+        <div class="err-box" id="login-err"></div>
+        <button class="btn-main" id="btn-login">로그인 →</button>
+      </div>
     </div>
   </div>
 </div>
 
 <!-- 방 생성 완료 -->
 <div id="screen-created" class="screen">
-  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem;">
-    <div class="login-card" style="text-align:center;">
-      <div style="font-size:32px;">🎉</div>
-      <div class="login-title">방이 생성되었습니다!</div>
-      <div class="login-sub">이 코드를 플레이어들에게 공유하세요</div>
-      <div id="created-room-code" style="font-size:44px;font-weight:700;letter-spacing:8px;padding:1rem;background:var(--bg2);border-radius:12px;border:0.5px solid var(--border2);margin:8px 0;">------</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.7;">플레이어들은 <b style="color:var(--text2);">minesweeper-v2.html</b> 에서<br>방 코드와 이름을 입력해 입장해요<br><br>🔔 브라우저 알림을 허용하면 입장/미션 요청 시 알림이 와요</div>
-      <button class="btn-main" onclick="goDashboard()" style="margin-top:16px;">관리자 대시보드로 →</button>
+  <div class="created-wrap">
+    <div style="font-size:32px;">🎉</div>
+    <div style="font-size:20px;font-weight:600;">방이 생성되었습니다!</div>
+    <div style="font-size:13px;color:var(--text2);">이 코드를 플레이어들에게 공유하세요</div>
+    <div class="big-code" id="created-code">------</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.8;">
+      플레이어들은 <b style="color:var(--text2);">minesweeper-v2.html</b> 에서<br>
+      방 코드 + 이름을 입력해 입장해요<br>
+      <span id="notif-lbl" style="color:var(--text3);">🔔 알림 상태 확인 중...</span>
     </div>
+    <button class="btn-main" id="btn-go-dash">관리자 대시보드 →</button>
   </div>
 </div>
 
@@ -569,13 +494,13 @@ input:focus{border-color:#555;}
   <div class="dash-head">
     <div>
       <div class="dash-title">💣 관리자 패널</div>
-      <div class="dash-sub" id="notif-label">알림 상태 확인 중...</div>
+      <div class="dash-sub" id="notif-lbl">알림 상태 확인 중...</div>
     </div>
-    <div class="room-pill"><span id="room-id-label">------</span></div>
+    <div class="room-pill"><span id="room-code-lbl">------</span></div>
   </div>
 
   <div class="tabs">
-    <button class="tab-btn active" data-tab="join"    onclick="switchTab('join')">
+    <button class="tab-btn active" data-tab="join" onclick="switchTab('join')">
       🙋 입장 승인 <span class="badge" id="badge-join" style="display:none;">0</span>
     </button>
     <button class="tab-btn" data-tab="mission" onclick="switchTab('mission')">
