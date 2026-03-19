@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관리자 패널 — 지뢰찾기</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, get, onValue, update }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDNiGqAegBSED4h-IJjzj9EkTR814Hlf2M",
+    authDomain: "snailbumbroom-13b73.firebaseapp.com",
+    databaseURL: "https://snailbumbroom-13b73-default-rtdb.firebaseio.com",
+    projectId: "snailbumbroom-13b73",
+    storageBucket: "snailbumbroom-13b73.firebasestorage.app",
+    messagingSenderId: "983942434316",
+    appId: "1:983942434316:web:948e08906badf01f2ca829"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  let ROOM_ID=null, adminPw="", gameState=null;
+  let notifGranted=false, notifiedKeys={};
+
+  const COLORS=[
+    {bg:"#B5D4F4",fg:"#0C447C"},{bg:"#C0DD97",fg:"#27500A"},
+    {bg:"#FAC775",fg:"#633806"},{bg:"#F4C0D1",fg:"#72243E"},
+    {bg:"#CECBF6",fg:"#3C3489"},{bg:"#9FE1CB",fg:"#085041"},
+    {bg:"#F5C4B3",fg:"#712B13"},{bg:"#D3D1C7",fg:"#2C2C2A"},
+    {bg:"#85B7EB",fg:"#042C53"},{bg:"#97C459",fg:"#173404"},
+    {bg:"#ED93B1",fg:"#4B1528"},{bg:"#EF9F27",fg:"#412402"},
+    {bg:"#5DCAA5",fg:"#04342C"},{bg:"#F09595",fg:"#501313"},
+    {bg:"#7F77DD",fg:"#26215C"}
+  ];
+
+  const $=id=>document.getElementById(id);
+  function showErr(id,msg){$(id).textContent=msg;$(id).classList.remove("hidden");}
+  function hideErr(id){$(id).classList.add("hidden");}
+  function roomRef(path=""){return ref(db,`rooms/${ROOM_ID}${path?"/"+path:""}`);}
+
+  async function requestNotif(){
+    if(!("Notification" in window)) return;
+    if(Notification.permission==="granted"){notifGranted=true;updateNotifLabel();return;}
+    if(Notification.permission==="denied"){updateNotifLabel();return;}
+    const r=await Notification.requestPermission();
+    notifGranted=(r==="granted");
+    updateNotifLabel();
+  }
+
+  function updateNotifLabel(){
+    const el=$("notif-label");
+    if(!el) return;
+    if(!("Notification" in window)) el.textContent="알림 미지원 브라우저";
+    else if(Notification.permission==="granted") el.textContent="🔔 알림 켜짐";
+    else if(Notification.permission==="denied") el.textContent="🔕 알림 차단됨";
+    else el.textContent="🔔 알림 허용 필요";
+  }
+
+  function sendNotif(title,body,tag){
+    if(!notifGranted||document.hasFocus()) return;
+    try{
+      const n=new Notification(title,{body,tag,
+        icon:"https://em-content.zobj.net/source/google/387/bomb_1f4a3.png",
+        requireInteraction:true});
+      n.onclick=()=>{window.focus();n.close();};
+    }catch(e){}
+  }
+
+  function timeAgo(ts){
+    const s=Math.floor((Date.now()-ts)/1000);
+    if(s<60) return s+"초 전";
+    if(s<3600) return Math.floor(s/60)+"분 전";
+    return Math.floor(s/3600)+"시간 전";
+  }
+
+  // ── 로그인 ──
+  $("btn-login").addEventListener("click",async()=>{
+    const rid=$("inp-room-id").value.trim().toUpperCase();
+    const pw=$("inp-admin-pw").value.trim();
+    if(!rid||!pw){showErr("login-err","방 코드와 비밀번호를 입력하세요.");return;}
+    ROOM_ID=rid;
+    try{
+      const snap=await get(roomRef());
+      if(!snap.exists()){showErr("login-err","존재하지 않는 방입니다.");return;}
+      const gs=snap.val();
+      if(pw!==atob(gs.adminPwHash||"")){showErr("login-err","비밀번호가 틀렸습니다.");return;}
+      adminPw=pw; gameState=gs;
+      hideErr("login-err");
+      $("screen-login").classList.remove("active");
+      $("screen-dash").classList.add("active");
+      $("room-id-label").textContent=ROOM_ID;
+      await requestNotif();
+      listenState();
+      renderAll();
+    }catch(e){showErr("login-err","Firebase 오류: "+e.message);}
+  });
+  $("inp-admin-pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("btn-login").click();});
+  $("inp-room-id").addEventListener("keydown",e=>{if(e.key==="Enter")$("btn-login").click();});
+  $("inp-room-id").addEventListener("input",e=>{e.target.value=e.target.value.toUpperCase();});
+
+  // ── 실시간 감지 ──
+  function listenState(){
+    onValue(roomRef(),snap=>{
+      if(!snap.exists()) return;
+      gameState=snap.val();
+      renderAll();
+      fireNotifs();
+    });
+  }
+
+  function fireNotifs(){
+    const gs=gameState;if(!gs) return;
+    Object.entries(gs.pendingJoin||{}).forEach(([name,data])=>{
+      if(!data.approved&&!data.rejected){
+        const key="join_"+name+"_"+data.requestedAt;
+        if(!notifiedKeys[key]){
+          notifiedKeys[key]=true;
+          sendNotif("🙋 입장 요청",name+"님이 입장 승인을 기다리고 있어요!","join_"+name);
+        }
+      }
+    });
+    (gs.players||[]).forEach(p=>{
+      if(p.pending){
+        const key="mission_"+p.name;
+        if(!notifiedKeys[key]){
+          notifiedKeys[key]=true;
+          sendNotif("✅ 미션 승인 요청",p.name+"님이 미션 승인을 요청했어요!","mission_"+p.name);
+        }
+      } else { delete notifiedKeys["mission_"+p.name]; }
+    });
+  }
+
+  // ── 렌더 ──
+  function renderAll(){
+    renderJoin();
+    renderMission();
+    renderPlayers();
+    updateBadges();
+  }
+
+  function updateBadges(){
+    const gs=gameState;if(!gs) return;
+    const jc=Object.values(gs.pendingJoin||{}).filter(r=>!r.approved&&!r.rejected).length;
+    const mc=(gs.players||[]).filter(p=>p.pending).length;
+    $("badge-join").textContent=jc;
+    $("badge-join").style.display=jc>0?"inline-flex":"none";
+    $("badge-mission").textContent=mc;
+    $("badge-mission").style.display=mc>0?"inline-flex":"none";
+    document.title=(jc+mc>0?`(${jc+mc}) `:"")+"관리자 패널 — 지뢰찾기";
+  }
+
+  function renderJoin(){
+    const gs=gameState;
+    const el=$("join-list");
+    const pending=Object.values(gs.pendingJoin||{}).filter(r=>!r.approved&&!r.rejected);
+    if(pending.length===0){el.innerHTML=`<div class="empty">대기 중인 입장 요청이 없어요 👍</div>`;return;}
+    el.innerHTML=pending.map(r=>`
+      <div class="req-card">
+        <div class="req-l">
+          <div class="avatar">${r.name[0].toUpperCase()}</div>
+          <div>
+            <div class="req-name">${r.name}</div>
+            <div class="req-sub">${timeAgo(r.requestedAt)}</div>
+          </div>
+        </div>
+        <div class="req-r">
+          <button class="btn-ok" onclick="approveJoin('${r.name}')">✅ 승인</button>
+          <button class="btn-no" onclick="rejectJoin('${r.name}')">❌ 거절</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function renderMission(){
+    const gs=gameState;
+    const el=$("mission-list");
+    const pending=(gs.players||[]).filter(p=>p.pending);
+    if(pending.length===0){el.innerHTML=`<div class="empty">대기 중인 미션 승인이 없어요 👍</div>`;return;}
+    el.innerHTML=pending.map(p=>{
+      const col=COLORS[p.color%COLORS.length];
+      const lastLog=p.log&&p.log.length?p.log[p.log.length-1]:"미션 정보 없음";
+      return `
+      <div class="req-card">
+        <div class="req-l">
+          <div class="avatar" style="background:${col.bg};color:${col.fg};">${p.name[0].toUpperCase()}</div>
+          <div>
+            <div class="req-name">${p.name}</div>
+            <div class="req-sub">📚 ${lastLog}</div>
+          </div>
+        </div>
+        <div class="req-r">
+          <button class="btn-ok" onclick="approveMission('${p.name}')">✅ 1턴 부여</button>
+          <button class="btn-no" onclick="rejectMission('${p.name}')">❌ 거절</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderPlayers(){
+    const gs=gameState;
+    const el=$("player-list");
+    if(!gs||!gs.players){el.innerHTML="";return;}
+    el.innerHTML=gs.players.map((p,i)=>{
+      const col=COLORS[p.color%COLORS.length];
+      const lastLog=p.log&&p.log.length?"최근: "+p.log[p.log.length-1]:"";
+      return `
+      <div class="player-row">
+        <div class="req-l">
+          <div class="avatar" style="background:${col.bg};color:${col.fg};">${p.name[0].toUpperCase()}</div>
+          <div>
+            <div class="req-name">${p.name}</div>
+            <div class="req-sub">${lastLog||"미션 기록 없음"}</div>
+          </div>
+        </div>
+        <div class="req-r">
+          <div class="turn-chip ${p.turns>0?"on":""}">${p.turns}턴</div>
+          <button class="btn-plus" onclick="giveTurn(${i})">+1</button>
+          <button class="btn-minus" onclick="removeTurn(${i})">−1</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  // ── 액션 ──
+  window.approveJoin=async name=>{
+    await update(ref(db,`rooms/${ROOM_ID}/pendingJoin/${name}`),{approved:true});
+    delete notifiedKeys["join_"+name];
+    toast(`${name}님 입장 승인 완료!`);
+  };
+  window.rejectJoin=async name=>{
+    await update(ref(db,`rooms/${ROOM_ID}/pendingJoin/${name}`),{rejected:true});
+    delete notifiedKeys["join_"+name];
+    toast(`${name}님 입장 거절`);
+  };
+  window.approveMission=async name=>{
+    const gs=gameState;
+    const idx=gs.players.findIndex(p=>p.name===name);
+    if(idx===-1) return;
+    const np=gs.players.map((pl,i)=>i===idx?{...pl,turns:pl.turns+1,pending:false}:pl);
+    await update(roomRef(),{players:np,msg:`✅ ${name}님에게 1턴 부여!`});
+    delete notifiedKeys["mission_"+name];
+    toast(`${name}님 미션 승인 — 1턴 부여!`);
+  };
+  window.rejectMission=async name=>{
+    const gs=gameState;
+    const np=gs.players.map(pl=>pl.name===name?{...pl,pending:false}:pl);
+    await update(roomRef(),{players:np,msg:`${name}님 미션이 거절되었습니다.`});
+    delete notifiedKeys["mission_"+name];
+    toast(`${name}님 미션 거절`);
+  };
+  window.giveTurn=async i=>{
+    const np=gameState.players.map((pl,j)=>j===i?{...pl,turns:pl.turns+1}:pl);
+    await update(roomRef(),{players:np,msg:`관리자: ${gameState.players[i].name}님 +1턴`});
+    toast(`${gameState.players[i].name}님 +1턴`);
+  };
+  window.removeTurn=async i=>{
+    const np=gameState.players.map((pl,j)=>j===i?{...pl,turns:Math.max(0,pl.turns-1)}:pl);
+    await update(roomRef(),{players:np});
+  };
+
+  // ── 탭 ──
+  window.switchTab=tab=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tab-pane").forEach(c=>c.classList.remove("active"));
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add("active");
+    $("pane-"+tab).classList.add("active");
+  };
+
+  // ── 토스트 ──
+  function toast(msg){
+    const t=document.createElement("div");
+    t.className="toast";t.textContent=msg;
+    document.body.appendChild(t);
+    setTimeout(()=>t.classList.add("show"),10);
+    setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),300);},2500);
+  }
+</script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#fff;--bg2:#f5f5f3;--bg3:#ebebeb;
+  --text:#1a1a1a;--text2:#666;--text3:#aaa;
+  --border:#e0e0e0;--border2:#ccc;
+  --r:8px;--rlg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1a1a1a;--bg2:#252525;--bg3:#303030;--text:#f0f0f0;--text2:#aaa;--text3:#666;--border:#333;--border2:#444;}
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg2);color:var(--text);min-height:100vh;}
+
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* 로그인 */
+#screen-login{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem;}
+.login-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);padding:2rem;width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px;}
+.login-title{font-size:20px;font-weight:600;text-align:center;}
+.login-sub{font-size:12px;color:var(--text2);text-align:center;}
+input[type=text],input[type=password]{width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:14px;outline:none;}
+input:focus{border-color:#555;}
+.btn-main{width:100%;padding:12px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:14px;font-weight:500;cursor:pointer;}
+.btn-main:hover{opacity:.85;}
+.err{font-size:12px;color:#E24B4A;}
+.hidden{display:none!important;}
+
+/* 대시보드 */
+#screen-dash{max-width:680px;margin:0 auto;padding:1rem;}
+.dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.dash-title{font-size:18px;font-weight:600;}
+.dash-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+.room-pill{font-size:12px;padding:5px 14px;border-radius:20px;background:var(--bg);border:0.5px solid var(--border);color:var(--text2);letter-spacing:3px;font-weight:700;}
+
+/* 탭 */
+.tabs{display:flex;border:0.5px solid var(--border);border-radius:var(--rlg);overflow:hidden;margin-bottom:14px;background:var(--bg);}
+.tab-btn{flex:1;padding:13px 6px;font-size:13px;border:none;background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .1s;}
+.tab-btn:not(:last-child){border-right:0.5px solid var(--border);}
+.tab-btn.active{background:var(--text);color:var(--bg);font-weight:500;}
+.tab-btn:not(.active):hover{background:var(--bg2);}
+.badge{min-width:18px;height:18px;padding:0 4px;border-radius:20px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
+.tab-btn.active .badge{background:rgba(255,255,255,0.2);color:var(--bg);}
+.tab-btn:not(.active) .badge{background:#E24B4A;color:white;}
+
+/* 탭 패널 */
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+.pane-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);padding:1.25rem;}
+.pane-title{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:12px;}
+.empty{font-size:13px;color:var(--text3);text-align:center;padding:28px 0;}
+
+/* 요청 카드 */
+.req-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:0.5px solid var(--border);border-radius:var(--r);margin-bottom:8px;background:var(--bg2);flex-wrap:wrap;}
+.req-card:last-child{margin-bottom:0;}
+.player-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border:0.5px solid var(--border);border-radius:var(--r);margin-bottom:8px;background:var(--bg2);flex-wrap:wrap;}
+.player-row:last-child{margin-bottom:0;}
+.req-l{display:flex;align-items:center;gap:10px;}
+.req-r{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.avatar{width:36px;height:36px;border-radius:50%;background:#E6F1FB;color:#0C447C;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;}
+.req-name{font-size:14px;font-weight:500;}
+.req-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.btn-ok{padding:6px 14px;border:0.5px solid #3B6D11;border-radius:var(--r);background:#EAF3DE;color:#27500A;font-size:12px;font-weight:500;cursor:pointer;}
+.btn-ok:hover{filter:brightness(.95);}
+.btn-no{padding:6px 14px;border:0.5px solid #E24B4A;border-radius:var(--r);background:#FCEBEB;color:#791F1F;font-size:12px;font-weight:500;cursor:pointer;}
+.btn-no:hover{filter:brightness(.95);}
+.turn-chip{font-size:13px;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--bg3);color:var(--text2);min-width:44px;text-align:center;}
+.turn-chip.on{background:#EAF3DE;color:#27500A;}
+.btn-plus{padding:5px 10px;border:0.5px solid #3B6D11;border-radius:var(--r);background:#EAF3DE;color:#27500A;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-minus{padding:5px 10px;border:0.5px solid #E24B4A;border-radius:var(--r);background:#FCEBEB;color:#791F1F;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* 토스트 */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:#1a1a1a;color:#fff;padding:10px 22px;border-radius:24px;font-size:13px;opacity:0;transition:all .25s;z-index:999;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(prefers-color-scheme:dark){.toast{background:#f0f0f0;color:#1a1a1a;}}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <div style="font-size:36px;text-align:center;">💣</div>
+    <div class="login-title">관리자 패널</div>
+    <div class="login-sub">방 코드와 관리자 비밀번호를 입력하세요</div>
+    <input type="text" id="inp-room-id" placeholder="방 코드 (6자리)" maxlength="6"
+      style="letter-spacing:4px;font-weight:700;text-align:center;text-transform:uppercase;">
+    <input type="password" id="inp-admin-pw" placeholder="관리자 비밀번호">
+    <div class="err hidden" id="login-err"></div>
+    <button class="btn-main" id="btn-login">로그인 →</button>
+  </div>
+</div>
+
+<!-- 대시보드 -->
+<div id="screen-dash" class="screen">
+  <div class="dash-head">
+    <div>
+      <div class="dash-title">💣 관리자 패널</div>
+      <div class="dash-sub" id="notif-label">알림 상태 확인 중...</div>
+    </div>
+    <div class="room-pill"><span id="room-id-label">------</span></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="join" onclick="switchTab('join')">
+      🙋 입장 승인
+      <span class="badge" id="badge-join" style="display:none;">0</span>
+    </button>
+    <button class="tab-btn" data-tab="mission" onclick="switchTab('mission')">
+      ✅ 미션 승인
+      <span class="badge" id="badge-mission" style="display:none;">0</span>
+    </button>
+    <button class="tab-btn" data-tab="players" onclick="switchTab('players')">
+      👥 플레이어
+    </button>
+  </div>
+
+  <div class="tab-pane active" id="pane-join">
+    <div class="pane-card">
+      <div class="pane-title">입장 대기 중인 플레이어</div>
+      <div id="join-list"><div class="empty">대기 중인 입장 요청이 없어요 👍</div></div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="pane-mission">
+    <div class="pane-card">
+      <div class="pane-title">미션 승인 대기 목록</div>
+      <div id="mission-list"><div class="empty">대기 중인 미션 승인이 없어요 👍</div></div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="pane-players">
+    <div class="pane-card">
+      <div class="pane-title">플레이어 현황 & 턴 조정</div>
+      <div id="player-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded",()=>{
+    if("Notification" in window){
+      const p=Notification.permission;
+      const el=document.getElementById("notif-label");
+      if(p==="granted") el.textContent="🔔 브라우저 알림 켜짐";
+      else if(p==="denied") el.textContent="🔕 알림 차단됨 — 브라우저 설정에서 허용해주세요";
+      else el.textContent="🔔 로그인 후 알림 허용을 눌러주세요";
+    }
+  });
+</script>
+</body>
+</html>
