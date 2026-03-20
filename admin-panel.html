@@ -284,7 +284,7 @@ function renderMission(){
   if(!pending.length){el.innerHTML=`<div class="empty">대기 중인 미션 승인이 없어요 👍</div>`;return;}
   el.innerHTML=pending.map(p=>{
     const col=COLORS[p.color%COLORS.length];
-    const secs=p.pendingSecs||0;
+    const secs=p.pendingSecsVal||p.pendingSecs||0;
     const turns=calcTurns(secs);
     const timeStr=secs>0?fmtTime(secs):"";
     return `
@@ -339,8 +339,10 @@ window.rejectJoin=async name=>{
 window.approveMission=async name=>{
   const idx=gameState.players.findIndex(p=>p.name===name); if(idx===-1) return;
   const p=gameState.players[idx];
-  const secs=p.pendingSecs||0;
-  const turns=calcTurns(secs)||1;
+  // Firebase는 null 값을 저장하지 않아 pendingSecs가 없을 수 있음
+  // pendingSecsVal 또는 pendingSecs 둘 다 확인
+  const secs=p.pendingSecsVal||p.pendingSecs||0;
+  const turns=secs>0?calcTurns(secs):1;
   const timeStr=secs>0?fmtTime(secs):"";
   const logStr=`${p.pendingMission||""} ${timeStr} → ${turns}턴`;
   const np=gameState.players.map((pl,i)=>i===idx
@@ -352,7 +354,7 @@ window.approveMission=async name=>{
   delete notifiedKeys["m_"+name]; toast(`${name}님 ${turns}턴 부여!`);
 };
 window.rejectMission=async name=>{
-  const np=gameState.players.map(pl=>pl.name===name?{...pl,pending:false,pendingMission:null,pendingSecs:null}:pl);
+  const np=gameState.players.map(pl=>pl.name===name?{...pl,pending:false,pendingMission:"",pendingSecsVal:0}:pl);
   await update(ref(db,"rooms/"+ROOM_ID),{players:np, msg:`${name}님 미션이 거절되었습니다.`});
   delete notifiedKeys["m_"+name]; toast(name+"님 미션 거절");
 };
@@ -401,7 +403,7 @@ window.approveNewRoom=async()=>{
   const newMines=newStage*10;
 
   const newPlayers=gs.players.map(p=>({
-    ...p, pending:false, pendingMission:null, pendingSecs:null
+    ...p, pending:false, pendingMission:"", pendingSecsVal:0
   }));
   const newState={
     phase:"game",
