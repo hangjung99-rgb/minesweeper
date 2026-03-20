@@ -138,7 +138,7 @@ $("btn-create").addEventListener("click", async()=>{
   if(new Set(names).size!==playerCount){ showErr("create-err","이름이 중복되었습니다."); return; }
   adminPw=pw;
   ROOM_ID=Math.random().toString(36).slice(2,8).toUpperCase();
-  const players=names.map((name,i)=>({name,color:i,turns:0,pending:false,pendingMission:null,pendingSecs:null,log:[]}));
+  const players=names.map((name,i)=>({name,color:i,turns:0,pending:false,pendingMission:"",pendingSecsVal:0,log:[]}));
   const init={
     phase:"game", mines:mc, adminPwHash:btoa(pw), playerCount, players,
     stageNum:1, clearedRooms:0,
@@ -284,8 +284,14 @@ function renderMission(){
   if(!pending.length){el.innerHTML=`<div class="empty">대기 중인 미션 승인이 없어요 👍</div>`;return;}
   el.innerHTML=pending.map(p=>{
     const col=COLORS[p.color%COLORS.length];
-    const secs=p.pendingSecsVal||p.pendingSecs||0;
-    const turns=calcTurns(secs);
+    let secs=parseInt(p.pendingSecsVal||0);
+    if(!secs && p.pendingMission){
+      const txt=p.pendingMission;
+      const hm=txt.match(/([0-9]+)시간/); const mm=txt.match(/([0-9]+)분/);
+      const h=hm?parseInt(hm[1]):0; const m=mm?parseInt(mm[1]):0;
+      secs=(h*60+m)*60;
+    }
+    const turns=secs>0 ? calcTurns(secs) : 0;
     const timeStr=secs>0?fmtTime(secs):"";
     return `
     <div class="req-card">
@@ -339,14 +345,22 @@ window.rejectJoin=async name=>{
 window.approveMission=async name=>{
   const idx=gameState.players.findIndex(p=>p.name===name); if(idx===-1) return;
   const p=gameState.players[idx];
-  // Firebase는 null 값을 저장하지 않아 pendingSecs가 없을 수 있음
-  // pendingSecsVal 또는 pendingSecs 둘 다 확인
-  const secs=p.pendingSecsVal||p.pendingSecs||0;
-  const turns=secs>0?calcTurns(secs):1;
+  // pendingSecsVal 우선, 없으면 pendingMission 텍스트에서 시간 파싱
+  let secs=parseInt(p.pendingSecsVal||0);
+  if(!secs && p.pendingMission){
+    // "흘듣 30분", "수학 1시간 30분" 등 텍스트에서 시간 파싱
+    const txt=p.pendingMission;
+    const hMatch=txt.match(/(\d+)시간/);
+    const mMatch=txt.match(/(\d+)분/);
+    const h=hMatch?parseInt(hMatch[1]):0;
+    const m=mMatch?parseInt(mMatch[1]):0;
+    secs=(h*60+m)*60;
+  }
+  const turns=secs>0 ? calcTurns(secs) : 1;
   const timeStr=secs>0?fmtTime(secs):"";
   const logStr=`${p.pendingMission||""} ${timeStr} → ${turns}턴`;
   const np=gameState.players.map((pl,i)=>i===idx
-    ?{...pl,turns:pl.turns+turns,pending:false,pendingMission:null,pendingSecs:null,log:[...(pl.log||[]),logStr]}
+    ?{...pl,turns:pl.turns+turns,pending:false,pendingMission:"",pendingSecsVal:0,log:[...(pl.log||[]),logStr]}
     :pl);
   await update(ref(db,"rooms/"+ROOM_ID),{
     players:np, msg:`✅ ${name}님에게 ${turns}턴 부여! (${p.pendingMission||""} ${timeStr})`

@@ -630,13 +630,13 @@ $("btn-submit-mission").addEventListener("click", async()=>{
   if(m.maxH&&selTimeSecs>m.maxH*3600){showErr("time-err",m.name+"은 최대 "+m.maxH+"시간까지만 인정됩니다.");return;}
   const timeStr=fmtTime(selTimeSecs);
   const prevPlayer=gameState.players[missionPlayerIdx];
-  const prevSecs=prevPlayer.pendingSecsVal||prevPlayer.pendingSecs||0;
-  const totalSecs=prevSecs+selTimeSecs;
+  const prevSecs=parseInt(prevPlayer.pendingSecsVal||prevPlayer.pendingSecs||0);
+  const totalSecs=parseInt(prevSecs)+parseInt(selTimeSecs);
   const totalTurns=calcTurns(totalSecs);
   const prevMission=prevPlayer.pendingMission||"";
   const missionNote=prevSecs>0?`${prevMission} + ${m.name} ${timeStr}`:`${m.name} ${timeStr}`;
   const newPlayers=gameState.players.map((pl,i)=>
-    i===missionPlayerIdx?{...pl,pending:true,pendingMission:missionNote,pendingSecsVal:totalSecs}:pl
+    i===missionPlayerIdx?{...pl,pending:true,pendingMission:missionNote,pendingSecsVal:parseInt(totalSecs)}:pl
   );
   await update(roomRef(),{players:newPlayers});
   approvalPlayerIdx=missionPlayerIdx;
