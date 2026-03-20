@@ -152,20 +152,16 @@ input:focus,select:focus{border-color:#555;}
 <div id="pg-approval" class="page">
   <div class="form-box">
     <div class="card">
-      <div class="card-title">관리자 승인 대기</div>
+      <div class="card-title">⏳ 관리자 승인 대기 중</div>
       <div id="approval-desc" style="font-size:13px;color:var(--text2);line-height:1.7;"></div>
-      <div style="background:var(--bg2);border-radius:var(--r);padding:10px;font-size:12px;color:var(--text3);text-align:center;">
-        관리자 패널에서 승인하면 자동으로 게임 화면으로 이동해요
+      <div style="background:var(--bg2);border-radius:var(--r);padding:12px;font-size:13px;color:var(--text3);text-align:center;line-height:1.7;">
+        관리자 패널에서 승인하면<br>자동으로 게임 화면으로 이동해요<br>
+        <span style="font-size:12px;">이 탭을 열어두세요</span>
       </div>
     </div>
-    <div class="card">
-      <div class="hint">또는 직접 관리자 비밀번호로 승인</div>
-      <input type="password" id="approval-pw" placeholder="관리자 비밀번호">
-      <div class="err" id="approval-err"></div>
-      <div class="btn-row">
-        <button class="btn-back" id="btn-back-approval">← 취소</button>
-        <button class="btn-main" id="btn-do-approve">✅ 직접 승인</button>
-      </div>
+    <div class="btn-row">
+      <button class="btn-back" id="btn-back-game">← 게임으로</button>
+      <button class="btn-main" id="btn-add-mission">+ 다른 미션 추가</button>
     </div>
   </div>
 </div>
@@ -395,8 +391,8 @@ function renderPlayers(){
       <div class="turn-num">${p.turns}</div>
       <div style="font-size:11px;color:#888;text-align:center;">턴</div>
       <div class="status-chip ${chipCls}">${chipTxt}</div>
-      ${isMe&&!p.pending?`<button class="mission-btn-small" id="open-mission-btn">미션 입력</button>`:""}
-      ${isMe&&p.pending?`<div style="text-align:center;font-size:11px;color:#633806;padding:4px;">⏳ 승인 대기 중...</div>`:""}
+      ${isMe?`<button class="mission-btn-small" id="open-mission-btn">${p.pending?"+ 미션 추가":"미션 입력"}</button>`:""}
+      ${isMe&&p.pending?`<div style="text-align:center;font-size:11px;color:#633806;padding:4px;">⏳ 승인 대기 중</div>`:""}
       <div style="font-size:10px;color:var(--text3);min-height:13px;">${lastLog}</div>`;
 
     if(isMe&&!p.pending){
@@ -493,45 +489,44 @@ $("btn-submit-mission").addEventListener("click", async()=>{
   approvalPlayerIdx=missionPlayerIdx;
   approvalMission=m.name;
   approvalSecs=secs;
-  // Firebase pending 기록
+  // Firebase pending 기록 — 기존 대기 중인 시간에 누적
+  const prevPlayer=gameState.players[missionPlayerIdx];
+  const prevSecs=prevPlayer.pendingSecs||0;
+  const totalSecs=prevSecs+secs;
+  const totalTurns=calcTurns(totalSecs);
+  const prevMission=prevPlayer.pendingMission||"";
+  const missionNote=prevSecs>0
+    ?`${prevMission} ${fmtTime(prevSecs)} + ${m.name} ${timeStr}`
+    :`${m.name} ${timeStr}`;
   const newPlayers=gameState.players.map((pl,i)=>
-    i===missionPlayerIdx?{...pl,pending:true,pendingMission:m.name,pendingSecs:secs}:pl
+    i===missionPlayerIdx?{...pl,pending:true,pendingMission:missionNote,pendingSecs:totalSecs}:pl
   );
   await update(roomRef(),{players:newPlayers});
   // 승인 화면
+  const descExtra=prevSecs>0
+    ?`<div style="margin-top:6px;font-size:12px;color:#888;text-align:center;">기존 대기: ${fmtTime(prevSecs)} + 추가: ${timeStr} = 합계 ${fmtTime(totalSecs)}</div>`
+    :"";
   $("approval-desc").innerHTML=
     `<b>${gameState.players[missionPlayerIdx].name}</b>님이 <b>[${m.name}]</b> 미션을 <b>${timeStr}</b> 수행했습니다.`+
-    `<div style="margin-top:12px;background:#EAF3DE;border-radius:8px;padding:12px;text-align:center;color:#27500A;font-size:18px;font-weight:600;">🎯 ${turns}턴 부여 예정</div>`+
+    descExtra+
+    `<div style="margin-top:12px;background:#EAF3DE;border-radius:8px;padding:12px;text-align:center;color:#27500A;font-size:18px;font-weight:600;">🎯 총 ${totalTurns}턴 부여 예정</div>`+
     `<div style="margin-top:6px;font-size:12px;color:#888;text-align:center;">30분 = 1턴</div>`;
-  $("approval-pw").value="";
-  hideErr("approval-err");
   goPage("pg-approval");
 });
 
-$("btn-back-approval").addEventListener("click",()=>goPage("pg-mission"));
-
-$("btn-do-approve").addEventListener("click", async()=>{
-  const pw=$("approval-pw").value;
-  let correct="";
-  try{correct=atob(gameState.adminPwHash||"");}catch(e){correct=gameState.adminPwHash||"";}
-  if(pw!==correct){showErr("approval-err","비밀번호가 틀렸습니다.");return;}
-  await sync();
-  const gs=gameState;
-  const turns=calcTurns(approvalSecs);
-  const timeStr=fmtTime(approvalSecs);
-  const logStr=`${approvalMission} ${timeStr} → ${turns}턴`;
-  const newPlayers=gs.players.map((pl,i)=>{
-    if(i!==approvalPlayerIdx) return pl;
-    return{...pl,turns:pl.turns+turns,pending:false,pendingMission:null,pendingSecs:null,
-           log:[...(pl.log||[]),logStr]};
-  });
-  await update(roomRef(),{
-    players:newPlayers,
-    msg:`✅ ${gs.players[approvalPlayerIdx].name}님에게 ${turns}턴 부여! (${approvalMission} ${timeStr})`
-  });
-  approvalPlayerIdx=null;
+// 게임으로 돌아가기 (승인 대기 유지)
+$("btn-back-game").addEventListener("click",()=>{
   goPage("pg-game");
   renderGame();
+});
+
+// 다른 미션 추가 입력 (승인 대기 중에도 추가 가능)
+$("btn-add-mission").addEventListener("click",()=>{
+  // 현재 본인 인덱스로 미션 화면 다시 열기
+  if(gameState&&myName){
+    const pi=gameState.players.findIndex(p=>p.name===myName);
+    if(pi!==-1) openMission(pi);
+  }
 });
 </script>
 </body>
