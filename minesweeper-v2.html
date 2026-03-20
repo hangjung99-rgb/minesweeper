@@ -122,7 +122,10 @@ input:focus{border-color:#555;}
 <div id="pg-game" class="page">
   <div class="game-inner">
     <div class="status-bar">
-      <div style="font-weight:500;display:flex;align-items:center;gap:5px;">💣 <span id="mines-left">0</span></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-weight:500;display:flex;align-items:center;gap:5px;">💣 <span id="mines-left">0</span></div>
+        <div style="font-size:11px;color:var(--text3);" id="room-stage"></div>
+      </div>
       <div id="game-msg" style="font-size:12px;flex:1;text-align:center;padding:0 8px;color:#185FA5;"></div>
     </div>
     <!-- 새 방 요청 대기 배너 (게임 오버 후 요청했을 때) -->
@@ -149,10 +152,10 @@ input:focus{border-color:#555;}
       <div class="card-title">수행 시간 선택</div>
       <div class="hint" id="time-hint">미션을 먼저 선택하세요</div>
       <div class="time-grid">
-        <div class="tbtn" data-secs="1800">30분<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">1턴</div></div>
-        <div class="tbtn" data-secs="3600">1시간<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">2턴</div></div>
-        <div class="tbtn" data-secs="5400">1시간 30분<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">3턴</div></div>
-        <div class="tbtn" data-secs="7200">2시간<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">4턴</div></div>
+        <div class="tbtn" data-secs="1800">30분<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">3턴</div></div>
+        <div class="tbtn" data-secs="3600">1시간<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">6턴</div></div>
+        <div class="tbtn" data-secs="5400">1시간 30분<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">9턴</div></div>
+        <div class="tbtn" data-secs="7200">2시간<div style="font-size:11px;color:inherit;opacity:.7;margin-top:3px;">12턴</div></div>
       </div>
       <div class="err" id="time-err"></div>
     </div>
@@ -247,7 +250,7 @@ const COLORS=[
   {bg:"#7F77DD",fg:"#26215C"}
 ];
 
-function calcTurns(secs){ return Math.floor(secs/1800); }
+function calcTurns(secs){ return Math.floor(secs/600); }  // 10분 = 1턴
 function fmtTime(secs){
   const h=Math.floor(secs/3600),m=Math.floor((secs%3600)/60);
   return h>0&&m>0?`${h}시간 ${m}분`:h>0?`${h}시간`:`${m}분`;
@@ -491,6 +494,13 @@ function renderGame(){
   const gs=gameState; if(!gs) return;
   $("mines-left").textContent=gs.mines-(gs.flagged||[]).filter(Boolean).length;
   if(gs.msg) setMsg(gs.msg);
+  // 방 번호 표시
+  const stageEl=$("room-stage");
+  if(stageEl){
+    const stage=gs.stageNum||1;
+    const cleared=gs.clearedRooms||0;
+    stageEl.textContent=`🏠 ${stage}번째 방 | 클리어 ${cleared}회`;
+  }
   renderPlayers(); renderBoard();
 }
 
@@ -637,7 +647,7 @@ $("btn-submit-mission").addEventListener("click", async()=>{
     `<b>${gameState.players[missionPlayerIdx].name}</b>님이 <b>[${m.name}]</b> 미션을 <b>${timeStr}</b> 수행했습니다.`+
     extraNote+
     `<div style="margin-top:12px;background:#EAF3DE;border-radius:8px;padding:12px;text-align:center;color:#27500A;font-size:18px;font-weight:600;">🎯 총 ${totalTurns}턴 부여 예정</div>`+
-    `<div style="margin-top:6px;font-size:12px;color:#888;text-align:center;">30분 = 1턴</div>`;
+    `<div style="margin-top:6px;font-size:12px;color:#888;text-align:center;">10분 = 1턴</div>`;
   goPage("pg-approval");
 });
 

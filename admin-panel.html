@@ -33,7 +33,7 @@ const COLORS=[
   {bg:"#7F77DD",fg:"#26215C"}
 ];
 
-function calcTurns(secs){ return Math.floor(secs/1800); }
+function calcTurns(secs){ return Math.floor(secs/600); }  // 10분 = 1턴
 function fmtTime(secs){
   const h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60);
   return h>0&&m>0?`${h}시간 30분`:h>0?`${h}시간`:"30분";
@@ -141,6 +141,7 @@ $("btn-create").addEventListener("click", async()=>{
   const players=names.map((name,i)=>({name,color:i,turns:0,pending:false,pendingMission:null,pendingSecs:null,log:[]}));
   const init={
     phase:"game", mines:mc, adminPwHash:btoa(pw), playerCount, players,
+    stageNum:1, clearedRooms:0,
     pendingJoin:{}, board:null,
     revealed:Array(ROWS*COLS).fill(false),
     flagged:Array(ROWS*COLS).fill(false),
@@ -238,6 +239,13 @@ function updateBadges(){
   $("badge-join").textContent=jc; $("badge-join").style.display=jc>0?"inline-flex":"none";
   $("badge-mission").textContent=mc; $("badge-mission").style.display=mc>0?"inline-flex":"none";
   document.title=(jc+mc>0?`(${jc+mc}) `:"")+"관리자 패널";
+  const sp=$("stage-pill");
+  if(sp&&gs){
+    const stage=gs.stageNum||1;
+    const cleared=gs.clearedRooms||0;
+    const mines=gs.mines||10;
+    sp.textContent=`🏠 ${stage}번째 방 | 💣 ${mines}개 | 클리어 ${cleared}회`;
+  }
 }
 
 function renderNewRoomReq(){
@@ -247,6 +255,10 @@ function renderNewRoomReq(){
   if(!req||req.approved){el.style.display="none";return;}
   el.style.display="flex";
   $("new-room-req-info").textContent=req.requestedBy+"님이 새 방 생성을 요청했어요 ("+timeAgo(req.requestedAt)+")";
+  const nextStage=(gs.stageNum||1)+1;
+  const nextMines=nextStage*10;
+  const previewEl=$("new-room-preview");
+  if(previewEl) previewEl.textContent=`→ ${nextStage}번째 방: 지뢰 ${nextMines}개로 시작`;
 }
 
 function renderJoin(){
@@ -376,16 +388,34 @@ window.approveNewRoom=async()=>{
   const gs=gameState;
   const ROWS=20, COLS=20;
   const newRoomId=Math.random().toString(36).slice(2,8).toUpperCase();
+
+  // 방 번호 (스테이지) 계산
+  const prevStage=gs.stageNum||1;
+  const newStage=prevStage+1;
+
+  // 클리어한 방 수 (폭파 방이면 증가 안 함, 클리어 방이면 증가)
+  const prevCleared=gs.clearedRooms||0;
+  const newCleared=gs.gameWon?prevCleared+1:prevCleared;
+
+  // 지뢰 수: 스테이지당 10개씩 증가 (1단계=10, 2단계=20, ...)
+  const newMines=newStage*10;
+
   const newPlayers=gs.players.map(p=>({
     ...p, pending:false, pendingMission:null, pendingSecs:null
   }));
   const newState={
-    phase:"game", mines:gs.mines, adminPwHash:gs.adminPwHash,
-    playerCount:gs.playerCount, players:newPlayers,
+    phase:"game",
+    mines:newMines,
+    adminPwHash:gs.adminPwHash,
+    playerCount:gs.playerCount,
+    players:newPlayers,
+    stageNum:newStage,
+    clearedRooms:newCleared,
     pendingJoin:{}, board:null,
     revealed:Array(ROWS*COLS).fill(false),
     flagged:Array(ROWS*COLS).fill(false),
-    gameOver:false, gameWon:false, firstClick:true, msg:""
+    gameOver:false, gameWon:false, firstClick:true,
+    msg:`🆕 ${newStage}번째 방 시작! 지뢰 ${newMines}개`
   };
   try{
     await set(ref(db,"rooms/"+newRoomId), newState);
@@ -395,7 +425,7 @@ window.approveNewRoom=async()=>{
       "newRoomRequest/approved":true
     });
     delete notifiedKeys["newroom_"+gs.newRoomRequest?.requestedAt];
-    toast("새 방 생성 완료: "+newRoomId);
+    toast(`새 방 생성 완료! ${newStage}번째 방 | 지뢰 ${newMines}개 | 코드: ${newRoomId}`);
   }catch(e){ alert("새 방 생성 오류: "+e.message); }
 };
 
@@ -512,10 +542,10 @@ input:focus{border-color:#555;}
         <input type="password" id="create-pw" placeholder="관리자 비밀번호 설정">
         <div style="display:flex;gap:8px;align-items:center;">
           <select id="mine-count" style="width:110px;">
-            <option value="30">30개</option>
-            <option value="50" selected>50개</option>
-            <option value="80">80개</option>
-            <option value="100">100개</option>
+            <option value="10" selected>10개 (1번째 방)</option>
+            <option value="20">20개 (2번째 방)</option>
+            <option value="30">30개 (3번째 방)</option>
+            <option value="50">50개 (5번째 방)</option>
           </select>
           <span style="font-size:13px;color:var(--text2);">지뢰</span>
         </div>
@@ -567,13 +597,17 @@ input:focus{border-color:#555;}
       <div class="dash-title">💣 관리자 패널</div>
       <div class="dash-sub" id="notif-lbl">알림 상태 확인 중...</div>
     </div>
-    <div class="room-pill"><span id="room-code-lbl">------</span></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="room-pill"><span id="room-code-lbl">------</span></div>
+      <div id="stage-pill" style="font-size:12px;padding:4px 10px;border-radius:20px;background:var(--bg);border:0.5px solid var(--border);color:var(--text2);"></div>
+    </div>
   </div>
 
   <!-- 새 방 요청 섹션 -->
   <div id="new-room-req-section" style="display:none;background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:12px;padding:14px;flex-direction:column;gap:10px;margin-bottom:8px;">
     <div style="font-size:14px;font-weight:500;color:#633806;">🆕 새 방 생성 요청</div>
     <div style="font-size:13px;color:#854F0B;" id="new-room-req-info"></div>
+    <div id="new-room-preview" style="font-size:12px;color:#633806;"></div>
     <div style="font-size:12px;color:#633806;">승인하면 플레이어와 턴 수를 그대로 유지한 새 방이 생성됩니다.</div>
     <button onclick="approveNewRoom()" style="padding:10px;border:none;border-radius:8px;background:#633806;color:#fff;font-size:13px;font-weight:500;cursor:pointer;">✅ 새 방 생성 승인</button>
   </div>
