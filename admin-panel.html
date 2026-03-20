@@ -196,7 +196,31 @@ function listenState(){
     gameState=snap.val();
     if($("screen-dash").style.display!=="none") renderAll();
     fireNotifs();
+    // 새 방 자동 감지 — 플레이어가 새 방을 만들면 관리자도 자동으로 새 방으로 이동
+    if(gameState.nextRoomId && gameState.nextRoomId!==ROOM_ID){
+      const newId=gameState.nextRoomId;
+      ROOM_ID=newId;
+      $("room-code-lbl").textContent=ROOM_ID;
+      listenState(); // 새 방 리스너 재연결
+      get(ref(db,"rooms/"+ROOM_ID)).then(s=>{
+        if(s.exists()){ gameState=s.val(); renderAll(); }
+      });
+      showNewRoomBanner(newId);
+    }
   });
+}
+
+function showNewRoomBanner(code){
+  let b=$("new-room-banner");
+  if(!b){
+    b=document.createElement("div");
+    b.id="new-room-banner";
+    $("screen-dash").insertBefore(b,$("screen-dash").firstChild);
+  }
+  b.style.cssText="background:#EAF3DE;border:0.5px solid #3B6D11;border-radius:8px;padding:12px 14px;font-size:13px;color:#27500A;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;";
+  b.innerHTML=`<span>🆕 새 방 생성! 코드: <b style="letter-spacing:3px;font-size:15px;">${code}</b> — 플레이어들에게 공유하세요</span>
+    <button onclick="document.getElementById('new-room-banner').remove()" style="border:none;background:transparent;color:#27500A;font-size:18px;cursor:pointer;line-height:1;">×</button>`;
+  toast("새 방 코드: "+code);
 }
 
 // ── 렌더 ──
