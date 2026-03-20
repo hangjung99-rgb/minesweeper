@@ -313,7 +313,7 @@ async function loadActiveRooms(){
     snap.forEach(child=>{
       const r=child.val();
       // 게임 오버/완료 안 된 방만
-      if(r.phase==="game"&&!r.gameOver&&!r.gameWon&&r.players){
+      if(r.phase==="game"&&!r.gameOver&&!r.gameWon&&!r.nextRoomId&&r.players){
         rooms.push({id:child.key, ...r});
       }
     });
@@ -438,8 +438,15 @@ function showGameOverDialog(isBomb){
     (gs.msg?gs.msg+"<br><br>":"")+
     `내 남은 턴: <b style="font-size:16px;">${turns}회</b><br>`+
     `<span style="font-size:12px;color:var(--text3);">새 방 요청 시 턴이 그대로 유지돼요</span>`;
-  $("dlg-btn-req").textContent="📨 새 방 요청하기";
-  $("dlg-btn-req").disabled=false;
+  const isBoomPlayer=!gameState.gameWon && gameState.boomBy===myName;
+  const reqBtn=$("dlg-btn-req");
+  if(isBoomPlayer){
+    reqBtn.style.display="block";
+    reqBtn.textContent="📨 새 방 요청하기";
+    reqBtn.disabled=false;
+  } else {
+    reqBtn.style.display="none";
+  }
   $("dialog-gameover").classList.add("on");
 }
 
@@ -532,6 +539,7 @@ async function clickCell(r,c){
   if(board[idx]===-1){
     const nr=[...gs.revealed];nr[idx]=true;
     upd.revealed=nr;upd.gameOver=true;
+    upd.boomBy=me.name;  // 지뢰 터뜨린 사람 기록
     upd.msg=`💥 ${me.name}님이 지뢰를 밟았습니다! 게임 오버`;
   }else{
     const nr=[...gs.revealed];flood(board,nr,r,c);
