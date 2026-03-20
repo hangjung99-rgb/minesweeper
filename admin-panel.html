@@ -97,6 +97,11 @@ function fireNotifs(){
       if(!notifiedKeys[key]){ notifiedKeys[key]=true; sendNotif("✅ 미션 승인 요청",p.name+"님이 미션 승인을 요청했어요!","m_"+p.name); }
     } else { delete notifiedKeys["m_"+p.name]; }
   });
+  // 새 방 요청 알림
+  if(gs.newRoomRequest&&!gs.newRoomRequest.approved){
+    const key="newroom_"+gs.newRoomRequest.requestedAt;
+    if(!notifiedKeys[key]){ notifiedKeys[key]=true; sendNotif("🆕 새 방 요청",gs.newRoomRequest.requestedBy+"님이 새 방 생성을 요청했어요!","newroom"); }
+  }
 }
 
 // ── 플레이어 이름 입력 ──
@@ -224,7 +229,7 @@ function showNewRoomBanner(code){
 }
 
 // ── 렌더 ──
-function renderAll(){ renderJoin(); renderMission(); renderPlayers(); updateBadges(); }
+function renderAll(){ renderNewRoomReq(); renderJoin(); renderMission(); renderPlayers(); updateBadges(); }
 
 function updateBadges(){
   const gs=gameState; if(!gs) return;
@@ -233,6 +238,15 @@ function updateBadges(){
   $("badge-join").textContent=jc; $("badge-join").style.display=jc>0?"inline-flex":"none";
   $("badge-mission").textContent=mc; $("badge-mission").style.display=mc>0?"inline-flex":"none";
   document.title=(jc+mc>0?`(${jc+mc}) `:"")+"관리자 패널";
+}
+
+function renderNewRoomReq(){
+  const gs=gameState; if(!gs) return;
+  const el=$("new-room-req-section"); if(!el) return;
+  const req=gs.newRoomRequest;
+  if(!req||req.approved){el.style.display="none";return;}
+  el.style.display="flex";
+  $("new-room-req-info").textContent=req.requestedBy+"님이 새 방 생성을 요청했어요 ("+timeAgo(req.requestedAt)+")";
 }
 
 function renderJoin(){
@@ -355,6 +369,34 @@ window.switchLoginTab=tab=>{
   $("panel-login").style.display=tab==="login"?"block":"none";
   $("ltab-create").classList.toggle("active",tab==="create");
   $("ltab-login").classList.toggle("active",tab==="login");
+};
+
+// ── 새 방 요청 승인 ──
+window.approveNewRoom=async()=>{
+  const gs=gameState;
+  const ROWS=20, COLS=20;
+  const newRoomId=Math.random().toString(36).slice(2,8).toUpperCase();
+  const newPlayers=gs.players.map(p=>({
+    ...p, pending:false, pendingMission:null, pendingSecs:null
+  }));
+  const newState={
+    phase:"game", mines:gs.mines, adminPwHash:gs.adminPwHash,
+    playerCount:gs.playerCount, players:newPlayers,
+    pendingJoin:{}, board:null,
+    revealed:Array(ROWS*COLS).fill(false),
+    flagged:Array(ROWS*COLS).fill(false),
+    gameOver:false, gameWon:false, firstClick:true, msg:""
+  };
+  try{
+    await set(ref(db,"rooms/"+newRoomId), newState);
+    // 기존 방에 nextRoomId 기록 → 플레이어들이 감지해서 이동
+    await update(ref(db,"rooms/"+ROOM_ID),{
+      nextRoomId:newRoomId,
+      "newRoomRequest/approved":true
+    });
+    delete notifiedKeys["newroom_"+gs.newRoomRequest?.requestedAt];
+    toast("새 방 생성 완료: "+newRoomId);
+  }catch(e){ alert("새 방 생성 오류: "+e.message); }
 };
 
 // ── 토스트 ──
@@ -526,6 +568,14 @@ input:focus{border-color:#555;}
       <div class="dash-sub" id="notif-lbl">알림 상태 확인 중...</div>
     </div>
     <div class="room-pill"><span id="room-code-lbl">------</span></div>
+  </div>
+
+  <!-- 새 방 요청 섹션 -->
+  <div id="new-room-req-section" style="display:none;background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:12px;padding:14px;flex-direction:column;gap:10px;margin-bottom:8px;">
+    <div style="font-size:14px;font-weight:500;color:#633806;">🆕 새 방 생성 요청</div>
+    <div style="font-size:13px;color:#854F0B;" id="new-room-req-info"></div>
+    <div style="font-size:12px;color:#633806;">승인하면 플레이어와 턴 수를 그대로 유지한 새 방이 생성됩니다.</div>
+    <button onclick="approveNewRoom()" style="padding:10px;border:none;border-radius:8px;background:#633806;color:#fff;font-size:13px;font-weight:500;cursor:pointer;">✅ 새 방 생성 승인</button>
   </div>
 
   <div class="tabs">
