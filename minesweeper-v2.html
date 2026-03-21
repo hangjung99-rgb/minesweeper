@@ -272,7 +272,7 @@ input:focus{border-color:#555;}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, get, set, onValue, update, query, orderByKey, limitToLast }
+import { getDatabase, ref, get, set, push, onValue, update, query, orderByKey, limitToLast }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -717,7 +717,7 @@ $("chat-input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){
 
 function startChatListener(){
   chatListening=true;
-  onValue(ref(db,`rooms/${ROOM_ID}/chat`),snap=>{
+  onValue(query(ref(db,`rooms/${ROOM_ID}/chat`),limitToLast(100)),snap=>{
     const msgs=[];
     if(snap.exists()) snap.forEach(c=>msgs.push({key:c.key,...c.val()}));
     renderChatMsgs(msgs);
@@ -762,11 +762,15 @@ async function sendChat(){
   const text=inp.value.trim();
   if(!text||!myName||!ROOM_ID) return;
   inp.value="";
-  await update(ref(db,`rooms/${ROOM_ID}/chat`),{[Date.now().toString()]:{name:myName,text,ts:Date.now(),type:"msg"}});
+  try{
+    await push(ref(db,`rooms/${ROOM_ID}/chat`),{name:myName,text,ts:Date.now(),type:"msg"});
+  }catch(e){ console.error("채팅 전송 오류:",e); }
 }
 async function sendSystem(text){
   if(!ROOM_ID) return;
-  await update(ref(db,`rooms/${ROOM_ID}/chat`),{[Date.now().toString()]:{name:"",text,ts:Date.now(),type:"system"}});
+  try{
+    await push(ref(db,`rooms/${ROOM_ID}/chat`),{name:"",text,ts:Date.now(),type:"system"});
+  }catch(e){}
 }
 </script>
 </body>
