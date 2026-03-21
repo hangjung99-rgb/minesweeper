@@ -266,7 +266,13 @@ function showNewRoomBanner(code){
 }
 
 // ── 렌더 ──
-function renderAll(){ renderNewRoomReq(); renderJoin(); renderMission(); renderPlayers(); updateBadges(); }
+function renderAll(){
+  try{ renderNewRoomReq(); }catch(e){}
+  try{ renderJoin(); }catch(e){}
+  try{ renderMission(); }catch(e){}
+  renderPlayers();
+  updateBadges();
+}
 
 function updateBadges(){
   const gs=gameState; if(!gs) return;
@@ -282,7 +288,8 @@ function updateBadges(){
 
 function renderNewRoomReq(){
   const gs=gameState; if(!gs) return;
-  const el=$("new-room-req-section"); if(!el) return;
+  const el=$("new-room-req-section");
+  if(!el) return;
   const req=gs.newRoomRequest;
   if(!req||req.approved){el.style.display="none";return;}
   el.style.display="flex";
@@ -309,6 +316,7 @@ function renderNewRoomReq(){
 
 function renderJoin(){
   const el=$("join-list");
+  if(!el) return;
   const pending=Object.values(gameState.pendingJoin||{}).filter(r=>!r.approved&&!r.rejected);
   if(!pending.length){el.innerHTML=`<div class="empty">대기 중인 입장 요청이 없어요 👍</div>`;return;}
   el.innerHTML=pending.map(r=>`
@@ -326,6 +334,7 @@ function renderJoin(){
 
 function renderMission(){
   const el=$("mission-list");
+  if(!el) return;
   const pending=(gameState.players||[]).filter(p=>p.pending);
   if(!pending.length){el.innerHTML=`<div class="empty">대기 중인 미션 승인이 없어요 👍</div>`;return;}
   el.innerHTML=pending.map(p=>{
@@ -431,20 +440,28 @@ window.removeTurn=async i=>{
 };
 
 // ── 탭 ──
-window.switchTab=tab=>{
+function switchTab(tab){
   document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll(".tab-pane").forEach(p=>p.style.display="none");
-  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add("active");
-  $("pane-"+tab).style.display="block";
-};
+  const btn=document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+  if(btn) btn.classList.add("active");
+  const pane=$("pane-"+tab);
+  if(pane) pane.style.display="block";
+}
+// 탭 버튼 이벤트
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
+});
 
 // ── 로그인 탭 전환 ──
-window.switchLoginTab=tab=>{
+function switchLoginTab(tab){
   $("panel-create").style.display=tab==="create"?"block":"none";
   $("panel-login").style.display=tab==="login"?"block":"none";
   $("ltab-create").classList.toggle("active",tab==="create");
   $("ltab-login").classList.toggle("active",tab==="login");
-};
+}
+$("ltab-create").addEventListener("click",()=>switchLoginTab("create"));
+$("ltab-login").addEventListener("click",()=>switchLoginTab("login"));
 
 // ── 새 방 요청 승인 ──
 window.approveNewRoom=async()=>{
@@ -545,12 +562,21 @@ window.removePlayer=async(i)=>{
   }catch(e){ alert("오류: "+e.message); }
 };
 
+// ── 버튼 이벤트 (module 스코프) ──
+const btnApproveNew=$("btn-approve-newroom");
+if(btnApproveNew) btnApproveNew.addEventListener("click",()=>approveNewRoom());
+const btnAddPlayer=$("btn-add-player");
+if(btnAddPlayer) btnAddPlayer.addEventListener("click",()=>addPlayer());
+$("add-player-name").addEventListener("keydown",e=>{if(e.key==="Enter") addPlayer();});
+
 // ── 로그아웃 ──
-window.logout=()=>{
+function doLogout(){
   localStorage.removeItem("admin_session");
   ROOM_ID=null; adminPw=""; gameState=null;
   screen("screen-login");
-};
+}
+const btnLogout=$("btn-logout");
+if(btnLogout) btnLogout.addEventListener("click",doLogout);
 
 // ── 토스트 ──
 function toast(msg){
@@ -655,8 +681,8 @@ input:focus{border-color:#555;}
     <div class="login-title">관리자 패널</div>
 
     <div class="ltabs">
-      <button class="ltab active" id="ltab-create" onclick="switchLoginTab('create')">새 방 만들기</button>
-      <button class="ltab" id="ltab-login" onclick="switchLoginTab('login')">기존 방 로그인</button>
+      <button class="ltab active" id="ltab-create">새 방 만들기</button>
+      <button class="ltab" id="ltab-login">기존 방 로그인</button>
     </div>
 
     <!-- 방 만들기 -->
@@ -723,18 +749,18 @@ input:focus{border-color:#555;}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:6px;">
         <div class="room-pill"><span id="room-code-lbl">------</span></div>
-        <button onclick="logout()" style="padding:4px 10px;border:0.5px solid var(--border2);border-radius:20px;background:var(--bg);color:var(--text3);font-size:11px;cursor:pointer;">로그아웃</button>
+        <button id="btn-logout" style="padding:4px 10px;border:0.5px solid var(--border2);border-radius:20px;background:var(--bg);color:var(--text3);font-size:11px;cursor:pointer;">로그아웃</button>
       </div>
       <div id="stage-pill" style="font-size:12px;padding:4px 10px;border-radius:20px;background:var(--bg);border:0.5px solid var(--border);color:var(--text2);"></div>
     </div>
   </div>
 
   <div class="tabs">
-    <button class="tab-btn active" data-tab="join" onclick="switchTab('join')">
+    <button class="tab-btn active" data-tab="join" id="tab-btn-join">
       🙋 입장 승인 <span class="badge" id="badge-join" style="display:none;">0</span>
     </button>
 
-    <button class="tab-btn active" data-tab="players" onclick="switchTab('players')">
+    <button class="tab-btn active" data-tab="players" id="tab-btn-players">
       👥 플레이어
     </button>
   </div>
@@ -754,7 +780,7 @@ input:focus{border-color:#555;}
           <input type="text" id="add-player-name" placeholder="추가할 이름" maxlength="8"
             onkeydown="if(event.key==='Enter') addPlayer()"
             style="flex:1;min-width:120px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:13px;outline:none;">
-          <button onclick="addPlayer()" style="padding:8px 16px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">+ 추가</button>
+          <button id="btn-add-player" style="padding:8px 16px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">+ 추가</button>
         </div>
         <div id="add-player-err" style="font-size:12px;color:#E24B4A;margin-top:6px;display:none;"></div>
       </div>
