@@ -326,7 +326,7 @@ function goPage(id){
   $(id).classList.add("on");
   if(id==="pg-game"){
     $("chat-fab").style.display="block";
-    if(window._startChat) window._startChat();
+    _startChat();
   } else {
     $("chat-fab").style.display="none";
     $("chat-win").style.display="none";
@@ -408,7 +408,7 @@ function listenState(){
 
     if(curId==="pg-waiting"){
       const me=(gameState.pendingJoin||{})[myName];
-      if(me&&me.approved){ goPage("pg-game"); renderGame(); if(window._sendSystem) window._sendSystem(`👋 ${myName}님이 입장했어요!`); return; }
+      if(me&&me.approved){ goPage("pg-game"); renderGame(); _sendSystem(`👋 ${myName}님이 입장했어요!`); return; }
       if(me&&me.rejected){ showErr("join-err","관리자가 입장을 거절했습니다."); goPage("pg-lobby"); return; }
     }
     if(curId==="pg-game") renderGame();
@@ -420,7 +420,7 @@ function listenState(){
       if(me&&prevMe&&prevMe.pending===true&&me.pending===false){
         goPage("pg-game"); renderGame();
         setMsg("✅ 미션 승인! 현재 턴: "+me.turns+"회");
-        if(window._sendSystem) window._sendSystem(`✅ ${me.name}님 미션 승인! (${me.turns}턴)`);
+        _sendSystem(`✅ ${me.name}님 미션 승인! (${me.turns}턴)`);
       }
     }
 
@@ -537,7 +537,7 @@ async function clickCell(r,c){
     const nr=[...gs.revealed];nr[idx]=true;
     upd.revealed=nr;upd.gameOver=true;upd.boomBy=me.name;
     upd.msg=`💥 ${me.name}님이 지뢰를 밟았습니다! 게임 오버`;
-    setTimeout(()=>if(window._sendSystem) window._sendSystem(`💥 ${me.name}님이 지뢰를 밟았어요!`),300);
+    setTimeout(()=>_sendSystem(`💥 ${me.name}님이 지뢰를 밟았어요!`),300);
   }else{
     const nr=[...gs.revealed];flood(board,nr,r,c);
     upd.revealed=nr;
@@ -545,7 +545,7 @@ async function clickCell(r,c){
     if(checkWin(board,nr)){
       upd.gameWon=true;upd.clearBy=me.name;
       upd.msg=`🎉 ${me.name}님이 마지막 칸을 열었습니다! 클리어!`;
-      setTimeout(()=>if(window._sendSystem) window._sendSystem(`🎉 클리어! ${me.name}님이 마지막 칸을 열었어요!`),300);
+      setTimeout(()=>_sendSystem(`🎉 클리어! ${me.name}님이 마지막 칸을 열었어요!`),300);
     }
   }
   await update(roomRef(),upd);
@@ -697,126 +697,138 @@ $("btn-add-mission").addEventListener("click",()=>{
 });
 
 // ── 채팅 ──
-(function(){
-  let open=false;
-  let unread=0;
-  let listening=false;
+var _chatListening=false;
 
-  function chatRef(){ return ref(db,"rooms/"+ROOM_ID+"/chat"); }
+function _startChat(){
+  if(_chatListening||!ROOM_ID) return;
+  _chatListening=true;
+  var chatPath=ref(db,"rooms/"+ROOM_ID+"/chat");
+  onValue(chatPath,function(snap){
+    var msgs=[];
+    if(snap.exists()){
+      snap.forEach(function(item){
+        var v=item.val();
+        if(v&&v.ts){
+          msgs[msgs.length]={
+            name: v.name||"",
+            text: v.text||"",
+            ts:   v.ts,
+            type: v.type||"msg"
+          };
+        }
+      });
+    }
+    msgs.sort(function(a,b){ return a.ts-b.ts; });
+    _drawChat(msgs);
+  });
+}
 
-  // 채팅 버튼 클릭
-  $("chat-btn").addEventListener("click",function(){
-    open=!open;
-    if(open){
-      $("chat-win").style.cssText="display:flex;flex-direction:column;";
-      unread=0;
-      $("chat-unread-dot").style.display="none";
-      scrollBottom();
-      setTimeout(function(){ $("chat-input").focus(); },100);
+function _drawChat(msgs){
+  var el=document.getElementById("chat-msgs");
+  if(!el) return;
+  var wasBottom=(el.scrollHeight-el.scrollTop-el.clientHeight)<60;
+  el.innerHTML="";
+  var list=msgs.slice(-100);
+  var newUnread=0;
+  for(var i=0;i<list.length;i++){
+    var m=list[i];
+    var isSys=(m.type==="system");
+    var isMe=(m.name===myName && !isSys);
+    var wrap=document.createElement("div");
+    if(isSys){
+      // 시스템 메시지
+      wrap.style.cssText="text-align:center;margin:4px 0;";
+      wrap.innerHTML='<span style="font-size:11px;color:var(--text3);background:var(--bg2);padding:2px 12px;border-radius:20px;display:inline-block;">'+_esc(m.text)+'</span>';
+    } else if(isMe){
+      // 내 메시지 (오른쪽)
+      var t=new Date(m.ts);
+      var ts=_pad(t.getHours())+":"+_pad(t.getMinutes());
+      wrap.style.cssText="display:flex;flex-direction:column;align-items:flex-end;margin:3px 0;max-width:85%;align-self:flex-end;margin-left:auto;";
+      wrap.innerHTML='<div style="background:#185FA5;color:#fff;padding:7px 12px;border-radius:14px 14px 4px 14px;font-size:13px;line-height:1.4;word-break:break-word;max-width:100%;">'+_esc(m.text)+'</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">'+ts+'</div>';
     } else {
-      $("chat-win").style.display="none";
+      // 상대방 메시지 (왼쪽)
+      var t2=new Date(m.ts);
+      var ts2=_pad(t2.getHours())+":"+_pad(t2.getMinutes());
+      wrap.style.cssText="display:flex;flex-direction:column;align-items:flex-start;margin:3px 0;max-width:85%;";
+      wrap.innerHTML='<div style="font-size:10px;color:var(--text3);margin-bottom:2px;">'+_esc(m.name)+'</div><div style="background:var(--bg2);color:var(--text);padding:7px 12px;border-radius:14px 14px 14px 4px;font-size:13px;line-height:1.4;word-break:break-word;max-width:100%;">'+_esc(m.text)+'</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">'+ts2+'</div>';
+      newUnread++;
     }
-  });
-
-  $("chat-close").addEventListener("click",function(){
-    open=false;
-    $("chat-win").style.display="none";
-  });
-
-  $("chat-send").addEventListener("click", doSend);
-  $("chat-input").addEventListener("keydown",function(e){
-    if(e.key==="Enter"){ e.preventDefault(); doSend(); }
-  });
-
-  async function doSend(){
-    var inp=$("chat-input");
-    var text=inp.value.trim();
-    if(!text||!myName||!ROOM_ID) return;
-    inp.value="";
-    try{
-      await fbPush(chatRef(),{
-        name:myName,
-        text:text,
-        ts:Date.now(),
-        type:"msg"
-      });
-    }catch(err){
-      alert("전송 실패: "+err.message);
-      inp.value=text;
-    }
+    el.appendChild(wrap);
   }
-
-  window._startChat=function(){
-    if(listening) return;
-    listening=true;
-    onValue(chatRef(),function(snap){
-      var msgs=[];
-      if(snap.exists()){
-        snap.forEach(function(c){
-          var v=c.val();
-          if(v) msgs.push2(v);
-        });
-      }
-      draw(msgs);
-    });
-  };
-
-  window._sendSystem=async function(text){
-    if(!ROOM_ID||!text) return;
-    try{
-      await fbPush(ref(db,"rooms/"+ROOM_ID+"/chat"),{
-        name:"",
-        text:text,
-        ts:Date.now(),
-        type:"system"
-      });
-    }catch(e){}
-  };
-
-  function draw(msgs){
-    var el=$("chat-msgs");
-    if(!el) return;
-    var atBottom=(el.scrollHeight-el.scrollTop-el.clientHeight)<60;
-    el.innerHTML="";
-    var slice=msgs.slice(-80);
-    var newCount=0;
-    for(var i=0;i<slice.length;i++){
-      var m=slice[i];
-      var isMe=(m.name===myName);
-      var isSys=(m.type==="system");
-      var wrap=document.createElement("div");
-      if(isSys){
-        wrap.style.cssText="text-align:center;padding:4px 0;";
-        wrap.innerHTML='<span style="font-size:11px;color:#aaa;background:var(--bg2);padding:2px 10px;border-radius:20px;">'+esc(m.text)+'</span>';
-      } else {
-        wrap.style.cssText="display:flex;flex-direction:column;gap:2px;max-width:85%;margin:"+(isMe?"4px 0 4px auto":"4px auto 4px 0")+";align-items:"+(isMe?"flex-end":"flex-start")+";";
-        var t=new Date(m.ts);
-        var ts=pad(t.getHours())+":"+pad(t.getMinutes());
-        var nameEl=isMe?"":'<div style="font-size:10px;color:#aaa;padding:0 4px;">'+esc(m.name)+'</div>';
-        var bg=isMe?"#185FA5":"var(--bg2)";
-        var fc=isMe?"#fff":"var(--text)";
-        var br=isMe?"14px 14px 4px 14px":"14px 14px 14px 4px";
-        wrap.innerHTML=nameEl+'<div style="padding:7px 11px;border-radius:'+br+';background:'+bg+';color:'+fc+';font-size:13px;line-height:1.4;word-break:break-word;">'+esc(m.text)+'</div><div style="font-size:10px;color:#aaa;padding:0 4px;">'+ts+'</div>';
-        if(!open&&!isMe) newCount++;
-      }
-      el.appendChild(wrap);
-    }
-    if(newCount>0){
-      unread+=newCount;
-      var dot=$("chat-unread-dot");
-      dot.textContent=unread>9?"9+":String(unread);
+  if(newUnread>0&&!_chatIsOpen()){
+    var dot=document.getElementById("chat-unread-dot");
+    if(dot){
+      _chatUnread+=newUnread;
+      dot.textContent=_chatUnread>9?"9+":String(_chatUnread);
       dot.style.display="flex";
+      dot.style.alignItems="center";
+      dot.style.justifyContent="center";
     }
-    if(atBottom||open) scrollBottom();
   }
+  if(wasBottom) _scrollChatBottom();
+}
 
-  function scrollBottom(){ var el=$("chat-msgs"); if(el) el.scrollTop=el.scrollHeight; }
-  function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-  function pad(n){ return n<10?"0"+n:String(n); }
-})();
+var _chatUnread=0;
 
-// msgs.push2 — Array.prototype 충돌 없이 push
-Array.prototype.push2=function(v){ this[this.length]=v; return this.length; };
+function _chatIsOpen(){
+  var w=document.getElementById("chat-win");
+  return w&&w.style.display!=="none";
+}
+function _scrollChatBottom(){
+  var el=document.getElementById("chat-msgs");
+  if(el) el.scrollTop=el.scrollHeight;
+}
+function _esc(s){
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function _pad(n){ return n<10?"0"+n:String(n); }
+
+async function _sendSystem(text){
+  if(!ROOM_ID||!text) return;
+  try{
+    await fbPush(ref(db,"rooms/"+ROOM_ID+"/chat"),{
+      name:"",text:text,ts:Date.now(),type:"system"
+    });
+  }catch(e){ console.warn("시스템 메시지 오류:",e.message); }
+}
+
+async function _sendChat(){
+  var inp=document.getElementById("chat-input");
+  var text=(inp.value||"").trim();
+  if(!text||!myName||!ROOM_ID) return;
+  inp.value="";
+  try{
+    await fbPush(ref(db,"rooms/"+ROOM_ID+"/chat"),{
+      name:myName,text:text,ts:Date.now(),type:"msg"
+    });
+  }catch(e){
+    alert("전송 실패: "+e.message);
+    inp.value=text;
+  }
+}
+
+// 채팅 버튼/창 이벤트
+document.getElementById("chat-btn").addEventListener("click",function(){
+  var w=document.getElementById("chat-win");
+  if(w.style.display==="none"||!w.style.display){
+    w.style.display="flex";
+    w.style.flexDirection="column";
+    _chatUnread=0;
+    var dot=document.getElementById("chat-unread-dot");
+    if(dot) dot.style.display="none";
+    _scrollChatBottom();
+    setTimeout(function(){ document.getElementById("chat-input").focus(); },50);
+  } else {
+    w.style.display="none";
+  }
+});
+document.getElementById("chat-close").addEventListener("click",function(){
+  document.getElementById("chat-win").style.display="none";
+});
+document.getElementById("chat-send").addEventListener("click",_sendChat);
+document.getElementById("chat-input").addEventListener("keydown",function(e){
+  if(e.key==="Enter"){ e.preventDefault(); _sendChat(); }
+});
 </script>
 </body>
 </html>
