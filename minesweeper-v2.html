@@ -434,15 +434,22 @@ function showGameOverDialog(isBomb){
   const turns=myPlayer?myPlayer.turns:0;
   $("dlg-icon").textContent=isBomb?"💥":"🎉";
   $("dlg-title").textContent=isBomb?"게임 오버!":"클리어!";
+  const extraMsg=isBomb
+    ?`<span style="font-size:12px;color:var(--text3);">새 방 요청 시 지뢰 10개로 리셋, 턴 유지</span>`
+    :gameState.clearBy===myName
+      ?`<span style="font-size:12px;color:#27500A;">다음 방 요청 시 지뢰 +10개 증가, 턴 유지</span>`
+      :`<span style="font-size:12px;color:var(--text3);">턴은 그대로 유지돼요</span>`;
   $("dlg-body").innerHTML=
     (gs.msg?gs.msg+"<br><br>":"")+
     `내 남은 턴: <b style="font-size:16px;">${turns}회</b><br>`+
-    `<span style="font-size:12px;color:var(--text3);">새 방 요청 시 턴이 그대로 유지돼요</span>`;
+    extraMsg;
   const isBoomPlayer=!gameState.gameWon && gameState.boomBy===myName;
+  const isClearPlayer=gameState.gameWon && gameState.clearBy===myName;
+  const canRequest=isBoomPlayer||isClearPlayer;
   const reqBtn=$("dlg-btn-req");
-  if(isBoomPlayer){
+  if(canRequest){
     reqBtn.style.display="block";
-    reqBtn.textContent="📨 새 방 요청하기";
+    reqBtn.textContent=isClearPlayer?"🆕 다음 방 만들기 요청":"📨 새 방 요청하기";
     reqBtn.disabled=false;
   } else {
     reqBtn.style.display="none";
@@ -545,7 +552,7 @@ async function clickCell(r,c){
     const nr=[...gs.revealed];flood(board,nr,r,c);
     upd.revealed=nr;
     upd.players=gs.players.map((pl,i)=>i===pi?{...pl,turns:pl.turns-1}:pl);
-    if(checkWin(board,nr)){upd.gameWon=true;upd.msg=`🎉 ${me.name}님이 마지막 칸을 열었습니다! 클리어!`;}
+    if(checkWin(board,nr)){upd.gameWon=true;upd.clearBy=me.name;upd.msg=`🎉 ${me.name}님이 마지막 칸을 열었습니다! 클리어!`;}
   }
   await update(roomRef(),upd);
 }

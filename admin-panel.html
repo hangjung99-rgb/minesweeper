@@ -286,9 +286,12 @@ function renderNewRoomReq(){
   const req=gs.newRoomRequest;
   if(!req||req.approved){el.style.display="none";return;}
   el.style.display="flex";
-  const boomBy=gs.boomBy||"";
-  const boomNote=boomBy?` (지뢰: ${boomBy}님))`:"";
-  $("new-room-req-info").textContent=req.requestedBy+"님이 새 방 생성을 요청했어요 "+timeAgo(req.requestedAt)+boomNote;
+  const isCleared=gs.gameWon===true;
+  const whoIcon=isCleared?"🎉":"💥";
+  const whoNote=isCleared
+    ?`클리어! ${gs.clearBy||req.requestedBy}님이 다음 방을 요청했어요`
+    :`지뢰 폭파! ${gs.boomBy||req.requestedBy}님이 새 방을 요청했어요`;
+  $("new-room-req-info").textContent=`${whoIcon} ${whoNote} (${timeAgo(req.requestedAt)})`;
   const wasCleared=gs.gameWon===true;
   const nextMines=wasCleared?(gs.mines||10)+10:10;
   const nextStage=wasCleared?(gs.stageNum||1)+1:1;
