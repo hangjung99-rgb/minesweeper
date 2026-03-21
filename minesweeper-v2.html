@@ -391,7 +391,11 @@ $("btn-join").addEventListener("click", async()=>{
       const newColor=gs.players.length%15;
       const newPlayers=[...gs.players,{name,color:newColor,turns:0,pending:false,pendingMission:"",pendingSecsVal:0,log:[]}];
       await update(roomRef(),{players:newPlayers,playerCount:newPlayers.length});
+      // 업데이트 후 최신 상태 다시 읽기
+      const fresh=await get(roomRef());
+      if(fresh.exists()) gameState=fresh.val();
     }
+    reset();
     listenState();
     goPage("pg-game");
     renderGame();
