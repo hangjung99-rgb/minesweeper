@@ -486,6 +486,7 @@ $("dlg-btn-enter-new").addEventListener("click",async()=>{
   $("dialog-newroom").classList.remove("on");
   const newId=pendingNewRoom; pendingNewRoom=null;
   ROOM_ID=newId; gameOverShown=false;
+  _chatListening=false; // 새 방 채팅 리스너 초기화
   $("new-room-req-banner").style.display="none";
   await update(ref(db,`rooms/${ROOM_ID}/pendingJoin`),{[myName]:{name:myName,requestedAt:Date.now(),approved:true,rejected:false}});
   const snap=await get(roomRef());
@@ -699,16 +700,20 @@ $("btn-add-mission").addEventListener("click",()=>{
 // ── 채팅 ──
 var _chatListening=false;
 
+var _chatJoinTime=0; // 입장 시각 — 이후 메시지만 표시
+
 function _startChat(){
   if(_chatListening||!ROOM_ID) return;
   _chatListening=true;
+  _chatJoinTime=Date.now(); // 입장 시각 기록
   var chatPath=ref(db,"rooms/"+ROOM_ID+"/chat");
   onValue(chatPath,function(snap){
     var msgs=[];
     if(snap.exists()){
       snap.forEach(function(item){
         var v=item.val();
-        if(v&&v.ts){
+        // 입장 시각 이후 메시지만 표시
+        if(v&&v.ts&&v.ts>=_chatJoinTime){
           msgs[msgs.length]={
             name: v.name||"",
             text: v.text||"",
