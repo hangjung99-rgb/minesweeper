@@ -101,9 +101,7 @@ input:focus{border-color:#555;}
 .req-banner{background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:var(--r);padding:8px 12px;font-size:12px;color:#633806;text-align:center;}
 
 /* ── 채팅 ── */
-#chat-btn{position:fixed;bottom:16px;right:16px;width:52px;height:52px;border-radius:50%;background:#185FA5;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.2);z-index:200;display:none;align-items:center;justify-content:center;}
-#chat-btn.visible{display:flex;}
-#chat-unread-dot{position:absolute;top:4px;right:4px;width:16px;height:16px;background:#E24B4A;border-radius:50%;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;color:#fff;}
+/* chat fab - inline styles */
 #chat-win{position:fixed;bottom:80px;right:16px;width:300px;height:380px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:201;display:none;flex-direction:column;}
 #chat-win.open{display:flex;}
 #chat-win-header{padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
@@ -252,10 +250,12 @@ input:focus{border-color:#555;}
 </div>
 
 <!-- 채팅 버튼 (우측 하단 고정) -->
-<button id="chat-btn">
-  💬
-  <div id="chat-unread-dot">0</div>
-</button>
+<div id="chat-fab" style="position:fixed;bottom:16px;right:16px;z-index:200;display:none;">
+  <button id="chat-btn" style="width:52px;height:52px;border-radius:50%;background:#185FA5;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.2);position:relative;">
+    💬
+  </button>
+  <span id="chat-unread-dot" style="position:absolute;top:0;right:0;width:18px;height:18px;background:#E24B4A;border-radius:50%;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;color:#fff;pointer-events:none;">0</span>
+</div>
 
 <!-- 채팅 창 -->
 <div id="chat-win">
@@ -272,7 +272,7 @@ input:focus{border-color:#555;}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, get, set, push, onValue, update, query, orderByKey, limitToLast }
+import { getDatabase, ref, get, set, push, onValue, update, query, orderByKey, limitToLast, child }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -325,10 +325,10 @@ function goPage(id){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("on"));
   $(id).classList.add("on");
   if(id==="pg-game"){
-    $("chat-btn").classList.add("visible");
+    $("chat-fab").style.display="block";
     if(!chatListening) startChatListener();
   } else {
-    $("chat-btn").classList.remove("visible");
+    $("chat-fab").style.display="none";
     $("chat-win").classList.remove("open");
     chatOpen=false;
   }
@@ -357,7 +357,7 @@ async function loadActiveRooms(){
     const rooms=[];
     snap.forEach(child=>{
       const r=child.val();
-      if(r.phase==="game"&&!r.gameOver&&!r.gameWon&&!r.nextRoomId&&r.players) rooms.push({id:child.key,...r});
+      if(r.phase==="game"&&!r.gameOver&&!r.gameWon&&!r.nextRoomId&&r.players) rooms[rooms.length]={id:child.key,...r};
     });
     rooms.reverse();
     if(!rooms.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);text-align:center;padding:6px;">진행 중인 방이 없어요</div>`;return;}
@@ -704,6 +704,7 @@ $("chat-btn").addEventListener("click",()=>{
   if(chatOpen){
     unreadCount=0;
     $("chat-unread-dot").style.display="none";
+    unreadCount=0;
     scrollChatBottom();
     $("chat-input").focus();
   }
@@ -717,10 +718,18 @@ $("chat-input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){
 
 function startChatListener(){
   chatListening=true;
-  onValue(query(ref(db,`rooms/${ROOM_ID}/chat`),limitToLast(100)),snap=>{
+  const chatRef=ref(db,"rooms/"+ROOM_ID+"/chat");
+  onValue(chatRef,snap=>{
     const msgs=[];
-    if(snap.exists()) snap.forEach(c=>msgs.push({key:c.key,...c.val()}));
+    if(snap.exists()){
+      snap.forEach(child=>{
+        const v=child.val();
+        if(v&&v.ts) msgs[msgs.length]={key:child.key,name:v.name||"",text:v.text||"",ts:v.ts,type:v.type||"msg"};
+      });
+    }
     renderChatMsgs(msgs);
+  },(err)=>{
+    console.error("채팅 읽기 오류:",err);
   });
 }
 
@@ -750,6 +759,8 @@ function renderChatMsgs(msgs){
     const dot=$("chat-unread-dot");
     dot.textContent=unreadCount>9?"9+":unreadCount;
     dot.style.display="flex";
+    dot.style.alignItems="center";
+    dot.style.justifyContent="center";
   }
   if(atBottom||chatOpen) scrollChatBottom();
 }
@@ -759,18 +770,25 @@ function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/
 
 async function sendChat(){
   const inp=$("chat-input");
-  const text=inp.value.trim();
-  if(!text||!myName||!ROOM_ID) return;
+  const text=(inp.value||"").trim();
+  if(!text){ return; }
+  if(!myName){ alert("이름이 없어요. 다시 입장해주세요."); return; }
+  if(!ROOM_ID){ alert("방에 입장되어 있지 않아요."); return; }
   inp.value="";
   try{
-    await push(ref(db,`rooms/${ROOM_ID}/chat`),{name:myName,text,ts:Date.now(),type:"msg"});
-  }catch(e){ console.error("채팅 전송 오류:",e); }
+    const newMsg={name:myName,text:text,ts:Date.now(),type:"msg"};
+    await push(ref(db,"rooms/"+ROOM_ID+"/chat"),newMsg);
+  }catch(e){
+    console.error("채팅 전송 오류:",e.code, e.message);
+    inp.value=text;
+    alert("전송 실패: "+e.message);
+  }
 }
 async function sendSystem(text){
-  if(!ROOM_ID) return;
+  if(!ROOM_ID||!text) return;
   try{
-    await push(ref(db,`rooms/${ROOM_ID}/chat`),{name:"",text,ts:Date.now(),type:"system"});
-  }catch(e){}
+    await push(ref(db,"rooms/"+ROOM_ID+"/chat"),{name:"시스템",text:text,ts:Date.now(),type:"system"});
+  }catch(e){ console.warn("시스템 메시지 오류:",e.message); }
 }
 </script>
 </body>
