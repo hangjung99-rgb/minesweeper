@@ -199,7 +199,7 @@ input:focus{border-color:#555;}
     </div>
     <div class="btn-row">
       <button class="btn-back" id="btn-back-mission">← 게임으로</button>
-      <button class="btn-main" id="btn-submit-mission">승인 요청 →</button>
+      <button class="btn-main" id="btn-submit-mission">✅ 턴 받기</button>
     </div>
   </div>
 </div>
@@ -385,12 +385,17 @@ $("btn-join").addEventListener("click", async()=>{
     const snap=await get(roomRef());
     if(!snap.exists()){showErr("join-err","존재하지 않는 방입니다.");reset();return;}
     const gs=snap.val();
-    if(!gs.players.find(p=>p.name===name)){showErr("join-err","관리자가 등록한 이름이 아닙니다.");reset();return;}
     myName=name; gameState=gs; gameOverShown=false;
-    await update(ref(db,`rooms/${ROOM_ID}/pendingJoin`),{[name]:{name,requestedAt:Date.now(),approved:false,rejected:false}});
-    $("wait-name").textContent=name;
-    goPage("pg-waiting");
+    // 이름이 플레이어 목록에 없으면 자동 추가
+    if(!gs.players.find(p=>p.name===name)){
+      const newColor=gs.players.length%15;
+      const newPlayers=[...gs.players,{name,color:newColor,turns:0,pending:false,pendingMission:"",pendingSecsVal:0,log:[]}];
+      await update(roomRef(),{players:newPlayers,playerCount:newPlayers.length});
+    }
     listenState();
+    goPage("pg-game");
+    renderGame();
+    setTimeout(()=>_sendSystem(`👋 ${myName}님이 입장했어요!`),300);
   }catch(e){showErr("join-err","오류: "+e.message);reset();}
   function reset(){$("btn-join").textContent="입장하기 →";$("btn-join").disabled=false;}
 });
@@ -406,23 +411,10 @@ function listenState(){
     gameState=snap.val();
     const curId=(document.querySelector(".page.on")||{}).id||"";
 
-    if(curId==="pg-waiting"){
-      const me=(gameState.pendingJoin||{})[myName];
-      if(me&&me.approved){ goPage("pg-game"); renderGame(); _sendSystem(`👋 ${myName}님이 입장했어요!`); return; }
-      if(me&&me.rejected){ showErr("join-err","관리자가 입장을 거절했습니다."); goPage("pg-lobby"); return; }
-    }
+    // 입장 대기 화면 없음 (즉시 입장)
     if(curId==="pg-game") renderGame();
 
-    // 미션 승인 감지
-    if(myName&&curId!=="pg-lobby"&&curId!=="pg-waiting"){
-      const me=gameState.players.find(p=>p.name===myName);
-      const prevMe=prev&&prev.players?prev.players.find(p=>p.name===myName):null;
-      if(me&&prevMe&&prevMe.pending===true&&me.pending===false){
-        goPage("pg-game"); renderGame();
-        setMsg("✅ 미션 승인! 현재 턴: "+me.turns+"회");
-        _sendSystem(`✅ ${me.name}님 미션 승인! (${me.turns}턴)`);
-      }
-    }
+
 
     // 게임오버/클리어 감지
     if(!gameOverShown&&(gameState.gameOver||gameState.gameWon)){
@@ -468,12 +460,32 @@ function showGameOverDialog(isBomb){
 }
 
 $("dlg-btn-req").addEventListener("click",async()=>{
-  $("dlg-btn-req").textContent="요청 중..."; $("dlg-btn-req").disabled=true;
-  await update(roomRef(),{newRoomRequest:{requestedBy:myName,requestedAt:Date.now(),approved:false}});
-  $("dialog-gameover").classList.remove("on");
-  goPage("pg-game");
-  $("new-room-req-banner").style.display="block";
-  renderGame();
+  $("dlg-btn-req").textContent="생성 중..."; $("dlg-btn-req").disabled=true;
+  const gs=gameState;
+  const wasCleared=gs.gameWon===true;
+  const newMines=wasCleared?(gs.mines||10)+10:10;
+  const newStage=wasCleared?(gs.stageNum||1)+1:1;
+  const newCleared=wasCleared?(gs.clearedRooms||0)+1:(gs.clearedRooms||0);
+  const newRoomId=Math.random().toString(36).slice(2,8).toUpperCase();
+  const newPlayers=gs.players.map(p=>({...p,pending:false,pendingMission:"",pendingSecsVal:0}));
+  const newState={
+    phase:"game", mines:newMines, adminPwHash:gs.adminPwHash,
+    playerCount:newPlayers.length, players:newPlayers,
+    stageNum:newStage, clearedRooms:newCleared,
+    pendingJoin:{}, board:null,
+    revealed:Array(400).fill(false), flagged:Array(400).fill(false),
+    gameOver:false, gameWon:false, firstClick:true,
+    msg:`🆕 ${newStage}번째 방 시작! 지뢰 ${newMines}개`
+  };
+  try{
+    await set(ref(db,"rooms/"+newRoomId), newState);
+    await update(roomRef(),{nextRoomId:newRoomId});
+    $("dialog-gameover").classList.remove("on");
+  }catch(e){
+    alert("새 방 생성 오류: "+e.message);
+    $("dlg-btn-req").textContent="📨 새 방 만들기";
+    $("dlg-btn-req").disabled=false;
+  }
 });
 $("dlg-btn-exit").addEventListener("click",()=>{
   $("dialog-gameover").classList.remove("on");
@@ -488,7 +500,6 @@ $("dlg-btn-enter-new").addEventListener("click",async()=>{
   ROOM_ID=newId; gameOverShown=false;
   _chatListening=false; // 새 방 채팅 리스너 초기화
   $("new-room-req-banner").style.display="none";
-  await update(ref(db,`rooms/${ROOM_ID}/pendingJoin`),{[myName]:{name:myName,requestedAt:Date.now(),approved:true,rejected:false}});
   const snap=await get(roomRef());
   if(snap.exists()) gameState=snap.val();
   listenState(); goPage("pg-game"); renderGame();
@@ -678,19 +689,19 @@ $("btn-submit-mission").addEventListener("click",async()=>{
   const m=MISSIONS.find(x=>x.id===selMissionId);
   if(m.maxH&&selTimeSecs>m.maxH*3600){showErr("time-err",m.name+"은 최대 "+m.maxH+"시간까지만 인정됩니다.");return;}
   const timeStr=fmtTime(selTimeSecs);
-  const prev=gameState.players[missionPlayerIdx];
-  const prevSecs=parseInt(prev.pendingSecsVal||0);
-  const totalSecs=prevSecs+selTimeSecs;
-  const totalTurns=calcTurns(totalSecs);
-  const mNote=prevSecs>0?`${prev.pendingMission||""} + ${m.name} ${timeStr}`:`${m.name} ${timeStr}`;
-  const newPlayers=gameState.players.map((pl,i)=>i===missionPlayerIdx?{...pl,pending:true,pendingMission:mNote,pendingSecsVal:parseInt(totalSecs)}:pl);
-  await update(roomRef(),{players:newPlayers});
-  approvalPlayerIdx=missionPlayerIdx; approvalMission=m.name; approvalSecs=selTimeSecs;
-  const extra=prevSecs>0?`<div style="margin-top:6px;font-size:12px;color:#888;text-align:center;">누적: ${fmtTime(prevSecs)} + ${timeStr} = ${fmtTime(totalSecs)}</div>`:"";
-  $("approval-desc").innerHTML=`<b>${gameState.players[missionPlayerIdx].name}</b>님이 <b>[${m.name}]</b> 미션을 <b>${timeStr}</b> 수행했습니다.`+extra+
-    `<div style="margin-top:12px;background:#EAF3DE;border-radius:8px;padding:12px;text-align:center;color:#27500A;font-size:18px;font-weight:600;">🎯 총 ${totalTurns}턴 부여 예정</div>`+
-    `<div style="margin-top:6px;font-size:12px;color:#888;text-align:center;">10분 = 1턴</div>`;
-  goPage("pg-approval");
+  const turns=calcTurns(selTimeSecs);
+  const p=gameState.players[missionPlayerIdx];
+  const logStr=`${m.name} ${timeStr} → ${turns}턴`;
+  const newPlayers=gameState.players.map((pl,i)=>
+    i===missionPlayerIdx?{...pl,turns:pl.turns+turns,pending:false,pendingMission:"",pendingSecsVal:0,log:[...(pl.log||[]),logStr]}:pl
+  );
+  await update(roomRef(),{
+    players:newPlayers,
+    msg:`✅ ${p.name}님 [${m.name}] ${timeStr} → ${turns}턴 부여!`
+  });
+  _sendSystem(`✅ ${p.name}님 미션 완료! ${m.name} ${timeStr} → ${turns}턴`);
+  goPage("pg-game");
+  renderGame();
 });
 $("btn-back-game").addEventListener("click",()=>{goPage("pg-game");renderGame();});
 $("btn-add-mission").addEventListener("click",()=>{
