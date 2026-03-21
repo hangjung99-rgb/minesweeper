@@ -11,41 +11,23 @@
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg2);color:var(--text);min-height:100vh;}
 .page{display:none;width:100%;min-height:100vh;}
 .page.on{display:flex;flex-direction:column;}
-
-/* 로비 */
 #pg-lobby{align-items:center;justify-content:center;padding:2rem 1rem;}
 .lobby-box{width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px;}
-
-/* 대기 */
-#pg-waiting{align-items:center;justify-content:center;padding:2rem;}
-.wait-box{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;}
-.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:#185FA5;border-radius:50%;animation:spin 1s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-/* 게임 */
 #pg-game{align-items:center;padding:0.5rem;gap:8px;padding-bottom:60px;}
 .game-inner{width:100%;max-width:980px;display:flex;flex-direction:column;gap:8px;}
 .status-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r);font-size:12px;}
-
-/* 플레이어 그리드 — 7명 한 줄 */
 .players-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
 @media(max-width:600px){.players-grid{grid-template-columns:repeat(4,1fr);}}
-
-/* 플레이어 카드 — 컴팩트 */
-.pcard{border-radius:8px;padding:6px 5px;display:flex;flex-direction:column;gap:3px;background:var(--bg);}
+.pcard{border-radius:8px;padding:6px 5px;display:flex;flex-direction:column;gap:3px;background:var(--bg);border:0.5px solid var(--border);}
 .pcard.me{border:2px solid #185FA5;background:#f0f7ff;}
-.pcard.other{border:0.5px solid var(--border);}
 .pcard.has-turn{background:#f8fff4;}
 .pav{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
 .pname{font-size:10px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pturns{font-size:18px;font-weight:600;text-align:center;line-height:1;}
-.pchip{font-size:9px;padding:1px 4px;border-radius:10px;text-align:center;white-space:nowrap;}
+.pchip{font-size:9px;padding:1px 4px;border-radius:10px;text-align:center;}
 .pc-ok{background:#EAF3DE;color:#27500A;}
-.pc-wait{background:#FAEEDA;color:#633806;}
 .pc-none{background:#f1f1ef;color:#888;}
-.pmission-btn{width:100%;padding:4px 2px;font-size:10px;border:0.5px solid #185FA5;border-radius:6px;background:#E6F1FB;color:#0C447C;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-
-/* 보드 */
+.pmission-btn{width:100%;padding:4px 2px;font-size:10px;border:0.5px solid #185FA5;border-radius:6px;background:#E6F1FB;color:#0C447C;cursor:pointer;}
 #board-wrap{overflow-x:auto;width:100%;}
 #board{display:grid;grid-template-columns:repeat(20,39px);gap:2px;margin:0 auto;}
 .cell{width:39px;height:39px;border:0.5px solid var(--border2);border-radius:4px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;cursor:pointer;user-select:none;}
@@ -57,70 +39,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .n1{color:#185FA5;}.n2{color:#3B6D11;}.n3{color:#A32D2D;}
 .n4{color:#3C3489;}.n5{color:#993C1D;}.n6{color:#0F6E56;}
 .n7{color:#72243E;}.n8{color:#888;}
-
-/* 미션/승인 */
-#pg-mission,#pg-approval{align-items:center;padding:1rem;gap:12px;}
+#pg-mission{align-items:center;padding:1rem;gap:12px;}
 .form-box{width:100%;max-width:500px;display:flex;flex-direction:column;gap:12px;}
 .card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);padding:1.25rem;display:flex;flex-direction:column;gap:10px;}
 .card-title{font-size:15px;font-weight:500;}
 .mission-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.mbtn{padding:12px 8px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;text-align:center;transition:background .1s;}
-.mbtn:hover{background:var(--bg);}
+.mbtn{padding:12px 8px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;text-align:center;}
 .mbtn.sel{border:2px solid #185FA5;background:#E6F1FB;color:#0C447C;}
 .time-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .tbtn{padding:11px 8px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;text-align:center;font-size:14px;}
-.tbtn:hover{background:var(--bg);}
 .tbtn.sel{border:2px solid #185FA5;background:#E6F1FB;color:#0C447C;font-weight:500;}
 .tbtn.disabled{opacity:.35;cursor:not-allowed;}
 .btn-row{display:flex;gap:8px;}
 .btn-back{flex:1;padding:12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg);color:var(--text);font-size:14px;cursor:pointer;}
-.btn-back:hover{background:var(--bg2);}
 .btn-main{flex:2;padding:12px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:14px;font-weight:500;cursor:pointer;}
-.btn-main:hover{opacity:.85;}
 .btn-main:disabled{opacity:.4;cursor:not-allowed;}
-
-/* 공통 */
-input[type=text],input[type=password]{width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:14px;outline:none;}
+input[type=text]{width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-size:14px;outline:none;}
 input:focus{border-color:#555;}
 .err{font-size:12px;color:#E24B4A;padding:7px 10px;background:#FCEBEB;border-radius:var(--r);display:none;}
-.hint{font-size:12px;color:var(--text3);}
-
-/* 다이얼로그 */
 .dialog-wrap{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:999;padding:1rem;}
 .dialog-wrap.on{display:flex;}
 .dialog{background:var(--bg);border-radius:var(--rlg);padding:1.5rem;max-width:360px;width:100%;display:flex;flex-direction:column;gap:14px;}
-.dialog-icon{font-size:44px;text-align:center;}
-.dialog-title{font-size:18px;font-weight:600;text-align:center;}
-.dialog-body{font-size:13px;color:var(--text2);text-align:center;line-height:1.8;}
-.dialog-btns{display:flex;flex-direction:column;gap:8px;}
 .dbtn-main{padding:13px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:14px;font-weight:500;cursor:pointer;}
-.dbtn-main:hover{opacity:.85;}
-.dbtn-main:disabled{opacity:.4;cursor:not-allowed;}
+.dbtn-main:disabled{opacity:.4;}
 .dbtn-sub{padding:11px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg);color:var(--text2);font-size:13px;cursor:pointer;}
-.dbtn-sub:hover{background:var(--bg2);}
-.req-banner{background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:var(--r);padding:8px 12px;font-size:12px;color:#633806;text-align:center;}
-
-/* ── 채팅 ── */
-/* chat fab - inline styles */
-#chat-win{position:fixed;bottom:80px;right:16px;width:300px;height:380px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:201;flex-direction:column;}
-
-#chat-win-header{padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-#chat-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);line-height:1;}
-#chat-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
-#chat-input-row{display:flex;gap:6px;padding:8px 10px;border-top:0.5px solid var(--border);flex-shrink:0;}
-#chat-input{flex:1;padding:7px 10px;border:0.5px solid var(--border2);border-radius:20px;background:var(--bg2);color:var(--text);font-size:13px;outline:none;}
-#chat-input:focus{border-color:#185FA5;}
-#chat-send{padding:7px 12px;border:none;border-radius:20px;background:#185FA5;color:#fff;font-size:13px;cursor:pointer;flex-shrink:0;}
-.cmsg{display:flex;flex-direction:column;gap:2px;}
-.cmsg.mine{align-items:flex-end;}
-.cmsg.other{align-items:flex-start;}
-.cmsg.sys{align-items:center;}
-.cbubble{padding:7px 11px;border-radius:14px;font-size:13px;line-height:1.4;word-break:break-word;max-width:85%;}
-.cmsg.mine .cbubble{background:#185FA5;color:#fff;border-radius:14px 14px 4px 14px;}
-.cmsg.other .cbubble{background:var(--bg2);border-radius:14px 14px 14px 4px;}
-.cmsg.sys .cbubble{background:transparent;color:var(--text3);font-size:11px;}
-.cname{font-size:10px;color:var(--text3);padding:0 4px;}
-.ctime{font-size:10px;color:var(--text3);padding:0 4px;}
+/* 채팅 */
+#chat-fab{position:fixed;bottom:16px;right:16px;z-index:200;display:none;}
+#chat-btn{width:52px;height:52px;border-radius:50%;background:#185FA5;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.2);}
+#chat-dot{position:absolute;top:0;right:0;width:18px;height:18px;background:#E24B4A;border-radius:50%;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;color:#fff;}
+#chat-win{position:fixed;bottom:80px;right:16px;width:300px;height:380px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rlg);box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:201;flex-direction:column;display:none;}
+#chat-head{padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+#chat-x{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);}
+#chat-msgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:4px;}
+#chat-row{display:flex;gap:6px;padding:8px 10px;border-top:0.5px solid var(--border);flex-shrink:0;}
+#chat-inp{flex:1;padding:7px 10px;border:0.5px solid var(--border2);border-radius:20px;background:var(--bg2);color:var(--text);font-size:13px;outline:none;}
+#chat-send{padding:7px 12px;border:none;border-radius:20px;background:#185FA5;color:#fff;font-size:13px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -130,32 +83,17 @@ input:focus{border-color:#555;}
   <div class="lobby-box">
     <div style="font-size:44px;text-align:center;">💣</div>
     <div style="font-size:22px;font-weight:600;text-align:center;">지뢰찾기</div>
-    <div style="font-size:13px;color:var(--text3);text-align:center;">관리자에게 받은 방 코드와 이름을 입력하세요</div>
-    <!-- 진행 중인 방 목록 -->
-    <div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-align:center;">진행 중인 방</div>
-      <div id="active-rooms-list" style="display:flex;flex-direction:column;gap:6px;">
-        <div style="font-size:12px;color:var(--text3);text-align:center;padding:8px;">불러오는 중...</div>
-      </div>
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:4px;">진행 중인 방</div>
+    <div id="active-rooms-list" style="display:flex;flex-direction:column;gap:6px;">
+      <div style="font-size:12px;color:var(--text3);text-align:center;padding:6px;">불러오는 중...</div>
     </div>
     <div class="card">
       <input type="text" id="inp-rid" placeholder="방 코드 (6자리)"
         style="text-align:center;letter-spacing:6px;font-size:20px;font-weight:700;text-transform:uppercase;">
       <input type="text" id="inp-name" placeholder="내 이름" style="text-align:center;font-size:16px;">
       <div class="err" id="join-err"></div>
-      <button class="btn-main" id="btn-join" style="flex:none;">입장하기 →</button>
+      <button id="btn-join" style="width:100%;padding:13px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:14px;font-weight:500;cursor:pointer;">입장하기 →</button>
     </div>
-    <div style="text-align:center;font-size:12px;color:var(--text3);">관리자는 admin-panel.html 을 사용하세요</div>
-  </div>
-</div>
-
-<!-- 입장 대기 -->
-<div id="pg-waiting" class="page">
-  <div class="wait-box">
-    <div class="spinner"></div>
-    <div style="font-size:20px;font-weight:600;"><span id="wait-name"></span>님</div>
-    <div style="font-size:14px;color:var(--text2);line-height:1.8;">관리자 승인을 기다리는 중이에요<br>승인되면 자동으로 게임에 입장돼요</div>
-    <div style="font-size:12px;color:var(--text3);">이 탭을 열어두세요</div>
   </div>
 </div>
 
@@ -163,19 +101,19 @@ input:focus{border-color:#555;}
 <div id="pg-game" class="page">
   <div class="game-inner">
     <div class="status-bar">
-      <div style="font-weight:500;display:flex;align-items:center;gap:5px;">💣 <span id="mines-left">0</span></div>
-      <div id="game-msg" style="font-size:11px;flex:1;text-align:center;padding:0 8px;color:#185FA5;"></div>
+      <div style="font-weight:500;">💣 <span id="mines-left">0</span></div>
+      <div id="game-msg" style="font-size:11px;flex:1;text-align:center;color:#185FA5;padding:0 8px;"></div>
       <div id="room-stage" style="font-size:10px;color:var(--text3);"></div>
     </div>
-    <div id="new-room-req-banner" class="req-banner" style="display:none;">
-      ⏳ 새 방 생성을 관리자에게 요청했어요. 승인을 기다리는 중...
+    <div id="new-room-banner" style="background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:var(--r);padding:8px 12px;font-size:12px;color:#633806;text-align:center;display:none;">
+      ⏳ 새 방 생성 중...
     </div>
     <div class="players-grid" id="players-grid"></div>
     <div id="board-wrap"><div id="board"></div></div>
   </div>
 </div>
 
-<!-- 미션 선택 -->
+<!-- 미션 -->
 <div id="pg-mission" class="page">
   <div class="form-box">
     <div class="card">
@@ -188,7 +126,7 @@ input:focus{border-color:#555;}
     </div>
     <div class="card">
       <div class="card-title">수행 시간 선택</div>
-      <div class="hint" id="time-hint">미션을 먼저 선택하세요</div>
+      <div style="font-size:12px;color:var(--text3);" id="time-hint">미션을 먼저 선택하세요</div>
       <div class="time-grid">
         <div class="tbtn" data-secs="1800">30분<div style="font-size:11px;opacity:.7;margin-top:3px;">3턴</div></div>
         <div class="tbtn" data-secs="3600">1시간<div style="font-size:11px;opacity:.7;margin-top:3px;">6턴</div></div>
@@ -204,32 +142,15 @@ input:focus{border-color:#555;}
   </div>
 </div>
 
-<!-- 미션 승인 대기 -->
-<div id="pg-approval" class="page">
-  <div class="form-box">
-    <div class="card">
-      <div class="card-title">⏳ 관리자 승인 대기 중</div>
-      <div id="approval-desc" style="font-size:13px;color:var(--text2);line-height:1.7;"></div>
-      <div style="background:var(--bg2);border-radius:var(--r);padding:14px;font-size:13px;color:var(--text3);text-align:center;line-height:1.8;">
-        🔔 관리자 패널에서 승인하면<br>자동으로 게임 화면으로 이동해요
-      </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn-back" id="btn-back-game">← 게임으로</button>
-      <button class="btn-main" id="btn-add-mission">+ 미션 추가</button>
-    </div>
-  </div>
-</div>
-
 <!-- 게임오버 다이얼로그 -->
-<div class="dialog-wrap" id="dialog-gameover">
+<div class="dialog-wrap" id="dialog-over">
   <div class="dialog">
-    <div class="dialog-icon" id="dlg-icon">💥</div>
-    <div class="dialog-title" id="dlg-title">게임 오버!</div>
-    <div class="dialog-body" id="dlg-body"></div>
-    <div class="dialog-btns">
-      <button class="dbtn-main" id="dlg-btn-req">📨 새 방 요청하기</button>
-      <button class="dbtn-sub" id="dlg-btn-exit">나가기</button>
+    <div style="font-size:44px;text-align:center;" id="dlg-icon">💥</div>
+    <div style="font-size:18px;font-weight:600;text-align:center;" id="dlg-title">게임 오버!</div>
+    <div style="font-size:13px;color:var(--text2);text-align:center;line-height:1.8;" id="dlg-body"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="dbtn-main" id="dlg-new" style="display:none;">🆕 새 방 만들기</button>
+      <button class="dbtn-sub" id="dlg-exit">나가기</button>
     </div>
   </div>
 </div>
@@ -237,57 +158,50 @@ input:focus{border-color:#555;}
 <!-- 새 방 알림 다이얼로그 -->
 <div class="dialog-wrap" id="dialog-newroom">
   <div class="dialog">
-    <div class="dialog-icon">🆕</div>
-    <div class="dialog-title">새 방이 생성됐어요!</div>
-    <div class="dialog-body">
-      새 방 코드: <b id="new-room-code" style="font-size:20px;letter-spacing:4px;"></b><br><br>
+    <div style="font-size:44px;text-align:center;">🆕</div>
+    <div style="font-size:18px;font-weight:600;text-align:center;">새 방이 생성됐어요!</div>
+    <div style="font-size:13px;color:var(--text2);text-align:center;line-height:1.8;">
+      새 방 코드: <b id="new-room-code" style="font-size:20px;letter-spacing:4px;"></b><br>
       <span style="font-size:12px;color:var(--text3);">턴 수는 그대로 유지돼요</span>
     </div>
-    <div class="dialog-btns">
-      <button class="dbtn-main" id="dlg-btn-enter-new">게임 계속하기 →</button>
-    </div>
+    <button class="dbtn-main" id="dlg-enter-new">게임 계속하기 →</button>
   </div>
 </div>
 
-<!-- 채팅 버튼 (우측 하단 고정) -->
-<div id="chat-fab" style="position:fixed;bottom:16px;right:16px;z-index:200;display:none;">
-  <button id="chat-btn" style="width:52px;height:52px;border-radius:50%;background:#185FA5;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.2);position:relative;">
-    💬
-  </button>
-  <span id="chat-unread-dot" style="position:absolute;top:0;right:0;width:18px;height:18px;background:#E24B4A;border-radius:50%;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;color:#fff;pointer-events:none;">0</span>
+<!-- 채팅 -->
+<div id="chat-fab">
+  <button id="chat-btn">💬</button>
+  <div id="chat-dot">0</div>
 </div>
-
-<!-- 채팅 창 -->
-<div id="chat-win" style="display:none;">
-  <div id="chat-win-header">
+<div id="chat-win">
+  <div id="chat-head">
     <span>💬 채팅</span>
-    <button id="chat-close">✕</button>
+    <button id="chat-x">✕</button>
   </div>
   <div id="chat-msgs"></div>
-  <div id="chat-input-row">
-    <input type="text" id="chat-input" placeholder="메시지 입력..." maxlength="100">
+  <div id="chat-row">
+    <input type="text" id="chat-inp" placeholder="메시지 입력..." maxlength="100">
     <button id="chat-send">전송</button>
   </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, get, set, push as fbPush, onValue, update, query, orderByKey, limitToLast }
+import { getDatabase, ref, get, set, push, onValue, update, query, orderByKey, limitToLast }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDNiGqAegBSED4h-IJjzj9EkTR814Hlf2M",
-  authDomain: "snailbumbroom-13b73.firebaseapp.com",
-  databaseURL: "https://snailbumbroom-13b73-default-rtdb.firebaseio.com",
-  projectId: "snailbumbroom-13b73",
-  storageBucket: "snailbumbroom-13b73.firebasestorage.app",
-  messagingSenderId: "983942434316",
-  appId: "1:983942434316:web:948e08906badf01f2ca829"
+const FC = {
+  apiKey:"AIzaSyDNiGqAegBSED4h-IJjzj9EkTR814Hlf2M",
+  authDomain:"snailbumbroom-13b73.firebaseapp.com",
+  databaseURL:"https://snailbumbroom-13b73-default-rtdb.firebaseio.com",
+  projectId:"snailbumbroom-13b73",
+  storageBucket:"snailbumbroom-13b73.firebasestorage.app",
+  messagingSenderId:"983942434316",
+  appId:"1:983942434316:web:948e08906badf01f2ca829"
 };
-const app = initializeApp(firebaseConfig);
-const db  = getDatabase(app);
+const db = getDatabase(initializeApp(FC));
 
-const ROWS=20, COLS=20;
+const ROWS=20,COLS=20;
 const MISSIONS=[
   {id:1,name:"흘듣",maxH:2},{id:2,name:"집듣",maxH:null},
   {id:3,name:"영어책",maxH:null},{id:4,name:"수학",maxH:null},
@@ -304,220 +218,212 @@ const COLORS=[
   {bg:"#7F77DD",fg:"#26215C"}
 ];
 
-function calcTurns(secs){ return Math.floor(secs/600); }
-function fmtTime(secs){
-  const h=Math.floor(secs/3600),m=Math.floor((secs%3600)/60);
-  return h>0&&m>0?`${h}시간 ${m}분`:h>0?`${h}시간`:`${m}분`;
-}
+const calcTurns = s => Math.floor(s/600);
+const fmtTime = s => {
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
+  return h&&m?h+"시간 "+m+"분":h?h+"시간":m+"분";
+};
+const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const pad = n => n<10?"0"+n:String(n);
+const $ = id => document.getElementById(id);
 
 let ROOM_ID=null, myName="", gameState=null;
-let selMissionId=null, selTimeSecs=0, missionPlayerIdx=null;
-let approvalPlayerIdx=null, approvalMission="", approvalSecs=0;
-let gameOverShown=false, pendingNewRoom=null;
-let chatOpen=false, unreadCount=0;
+let selMId=null, selSecs=0, mIdx=null;
+let overShown=false, pendingNew=null;
+let chatOn=false, chatUnread=0, chatJoinTime=0, chatListening=false;
 
-const $=id=>document.getElementById(id);
-function showErr(id,msg){$(id).textContent=msg;$(id).style.display="block";}
-function hideErr(id){$(id).style.display="none";}
-function setMsg(m){$("game-msg").textContent=m;}
-
+// ── 화면 전환 ──
 function goPage(id){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("on"));
   $(id).classList.add("on");
   if(id==="pg-game"){
     $("chat-fab").style.display="block";
-    _startChat();
+    if(!chatListening){ chatListening=true; chatJoinTime=Date.now(); startChat(); }
   } else {
     $("chat-fab").style.display="none";
     $("chat-win").style.display="none";
-    chatOpen=false;
+    chatOn=false;
   }
 }
 
-function roomRef(p=""){ return ref(db,`rooms/${ROOM_ID}${p?"/"+p:""}`); }
-async function sync(){ const s=await get(roomRef()); if(s.exists()) gameState=s.val(); }
+const rRef = (p="") => ref(db,"rooms/"+ROOM_ID+(p?"/"+p:""));
+const sync = async () => { const s=await get(rRef()); if(s.exists()) gameState=s.val(); };
 
-function bHTML(name,ci){
+const bHTML = (name,ci) => {
   const c=COLORS[ci%COLORS.length];
   return `<div class="pav" style="background:${c.bg};color:${c.fg};">${name[0].toUpperCase()}</div>`;
-}
-function bEl(name,ci){
-  const c=COLORS[ci%COLORS.length];
-  const d=document.createElement("div");
-  d.className="pav"; d.style.cssText=`background:${c.bg};color:${c.fg};width:22px;height:22px;font-size:11px;`;
-  d.textContent=name[0].toUpperCase(); return d;
-}
+};
+const bEl = (name,ci) => {
+  const c=COLORS[ci%COLORS.length],d=document.createElement("div");
+  d.className="pav";d.style.cssText=`background:${c.bg};color:${c.fg};width:22px;height:22px;font-size:11px;`;
+  d.textContent=name[0].toUpperCase();return d;
+};
 
 // ── 진행 중인 방 목록 ──
-async function loadActiveRooms(){
+async function loadRooms(){
   const el=$("active-rooms-list"); if(!el) return;
   try{
     const snap=await get(query(ref(db,"rooms"),orderByKey(),limitToLast(30)));
-    if(!snap.exists()){el.innerHTML=`<div style="font-size:12px;color:var(--text3);text-align:center;padding:6px;">진행 중인 방이 없어요</div>`;return;}
+    if(!snap.exists()){el.innerHTML=`<div style="font-size:12px;color:var(--text3);text-align:center;">진행 중인 방이 없어요</div>`;return;}
     const rooms=[];
-    snap.forEach(sc=>{
-      const r=sc.val();
-      if(r.phase==="game"&&!r.gameOver&&!r.gameWon&&!r.nextRoomId&&r.players) rooms[rooms.length]={id:sc.key,...r};
+    snap.forEach(c=>{
+      const r=c.val();
+      if(r.phase==="game"&&!r.gameOver&&!r.gameWon&&!r.nextRoomId&&r.players)
+        rooms.unshift({id:c.key,...r});
     });
-    rooms.reverse();
-    if(!rooms.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);text-align:center;padding:6px;">진행 중인 방이 없어요</div>`;return;}
+    if(!rooms.length){el.innerHTML=`<div style="font-size:12px;color:var(--text3);text-align:center;">진행 중인 방이 없어요</div>`;return;}
     el.innerHTML=rooms.map(r=>`
-      <div onclick="selRoom('${r.id}')" style="padding:9px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;" onmouseover="this.style.background='#E6F1FB'" onmouseout="this.style.background='var(--bg)'">
-        <div style="font-size:15px;font-weight:700;letter-spacing:3px;color:#185FA5;">${r.id}</div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-          <div style="font-size:11px;padding:2px 7px;border-radius:20px;background:#EAF3DE;color:#27500A;">${r.stageNum||1}번째 방 💣${r.mines}개</div>
-          <div style="font-size:10px;color:var(--text3);">${(r.players||[]).map(p=>p.name).join(", ")}</div>
+      <div onclick="document.getElementById('inp-rid').value='${r.id}';document.getElementById('inp-name').focus();"
+        style="padding:9px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:15px;font-weight:700;letter-spacing:3px;color:#185FA5;">${r.id}</span>
+        <div style="text-align:right;">
+          <div style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 7px;border-radius:20px;">${r.stageNum||1}번째 방 💣${r.mines}개</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${(r.players||[]).map(p=>p.name).join(", ")}</div>
         </div>
       </div>`).join("");
   }catch(e){el.innerHTML=`<div style="font-size:12px;color:var(--text3);text-align:center;">불러오기 실패</div>`;}
 }
-window.selRoom=id=>{ $("inp-rid").value=id; $("inp-name").focus(); };
-loadActiveRooms();
+loadRooms();
 
 // ── 입장 ──
-$("btn-join").addEventListener("click", async()=>{
-  const rid=$("inp-rid").value.trim().toUpperCase();
-  const name=$("inp-name").value.trim();
-  if(!rid||!name){showErr("join-err","방 코드와 이름을 입력하세요.");return;}
-  $("btn-join").textContent="확인 중..."; $("btn-join").disabled=true;
+$("btn-join").addEventListener("click", async function(){
+  const rid=($("inp-rid").value||"").trim().toUpperCase();
+  const name=($("inp-name").value||"").trim();
+  const errEl=$("join-err");
+  errEl.style.display="none";
+  if(!rid||!name){errEl.textContent="방 코드와 이름을 입력하세요.";errEl.style.display="block";return;}
+  const btn=$("btn-join");
+  btn.textContent="확인 중...";btn.disabled=true;
   ROOM_ID=rid;
   try{
-    const snap=await get(roomRef());
-    if(!snap.exists()){showErr("join-err","존재하지 않는 방입니다.");reset();return;}
-    const gs=snap.val();
-    myName=name; gameState=gs; gameOverShown=false;
-    // 이름이 플레이어 목록에 없으면 자동 추가
-    if(!gs.players.find(p=>p.name===name)){
-      const newColor=gs.players.length%15;
-      const newPlayers=[...gs.players,{name,color:newColor,turns:0,pending:false,pendingMission:"",pendingSecsVal:0,log:[]}];
-      await update(roomRef(),{players:newPlayers,playerCount:newPlayers.length});
-      // 업데이트 후 최신 상태 다시 읽기
-      const fresh=await get(roomRef());
+    const snap=await get(rRef());
+    if(!snap.exists()){
+      errEl.textContent="존재하지 않는 방입니다.";errEl.style.display="block";
+      btn.textContent="입장하기 →";btn.disabled=false;return;
+    }
+    gameState=snap.val();
+    myName=name;overShown=false;
+    // 이름이 없으면 자동 추가
+    if(!gameState.players.find(function(p){return p.name===name;})){
+      const nc=gameState.players.length%15;
+      const np=gameState.players.concat([{name:name,color:nc,turns:0,pending:false,pendingMission:"",pendingSecsVal:0,log:[]}]);
+      await update(rRef(),{players:np,playerCount:np.length});
+      const fresh=await get(rRef());
       if(fresh.exists()) gameState=fresh.val();
     }
-    reset();
+    btn.textContent="입장하기 →";btn.disabled=false;
     listenState();
     goPage("pg-game");
     renderGame();
-    setTimeout(()=>_sendSystem(`👋 ${myName}님이 입장했어요!`),300);
-  }catch(e){showErr("join-err","오류: "+e.message);reset();}
-  function reset(){$("btn-join").textContent="입장하기 →";$("btn-join").disabled=false;}
+    setTimeout(function(){ chatSys("👋 "+myName+"님이 입장했어요!"); },400);
+  }catch(e){
+    errEl.textContent="오류: "+e.message;errEl.style.display="block";
+    btn.textContent="입장하기 →";btn.disabled=false;
+  }
 });
-$("inp-rid").addEventListener("input",e=>e.target.value=e.target.value.toUpperCase());
-$("inp-rid").addEventListener("keydown",e=>{if(e.key==="Enter")$("inp-name").focus();});
-$("inp-name").addEventListener("keydown",e=>{if(e.key==="Enter")$("btn-join").click();});
+$("inp-rid").addEventListener("input",function(e){e.target.value=e.target.value.toUpperCase();});
+$("inp-rid").addEventListener("keydown",function(e){if(e.key==="Enter")$("inp-name").focus();});
+$("inp-name").addEventListener("keydown",function(e){if(e.key==="Enter")$("btn-join").click();});
 
 // ── 실시간 감지 ──
 function listenState(){
-  onValue(roomRef(),snap=>{
+  onValue(rRef(),function(snap){
     if(!snap.exists()) return;
-    const prev=gameState;
     gameState=snap.val();
-    const curId=(document.querySelector(".page.on")||{}).id||"";
-
-    // 입장 대기 화면 없음 (즉시 입장)
-    if(curId==="pg-game") renderGame();
-
-
-
-    // 게임오버/클리어 감지
-    if(!gameOverShown&&(gameState.gameOver||gameState.gameWon)){
-      if(curId!=="pg-lobby"&&curId!=="pg-waiting"){
-        gameOverShown=true;
-        showGameOverDialog(gameState.gameOver);
-      }
+    const id=(document.querySelector(".page.on")||{}).id||"";
+    if(id==="pg-game") renderGame();
+    // 게임오버/클리어
+    if(!overShown&&(gameState.gameOver||gameState.gameWon)){
+      if(id!=="pg-lobby"){ overShown=true; showOverDialog(); }
     }
-
-    // 새 방 생성 감지
-    if(gameState.nextRoomId&&gameState.nextRoomId!==ROOM_ID&&curId!=="pg-lobby"){
-      pendingNewRoom=gameState.nextRoomId;
-      $("dialog-gameover").classList.remove("on");
-      $("new-room-req-banner").style.display="none";
-      $("new-room-code").textContent=pendingNewRoom;
+    // 새 방 감지
+    if(gameState.nextRoomId&&gameState.nextRoomId!==ROOM_ID&&id!=="pg-lobby"){
+      pendingNew=gameState.nextRoomId;
+      $("dialog-over").classList.remove("on");
+      $("new-room-banner").style.display="none";
+      $("new-room-code").textContent=pendingNew;
       $("dialog-newroom").classList.add("on");
     }
   });
 }
 
 // ── 게임오버 다이얼로그 ──
-function showGameOverDialog(isBomb){
+function showOverDialog(){
   const gs=gameState;
-  const myP=gs.players.find(p=>p.name===myName);
-  const turns=myP?myP.turns:0;
-  $("dlg-icon").textContent=isBomb?"💥":"🎉";
-  $("dlg-title").textContent=isBomb?"게임 오버!":"클리어!";
-  const isBoomMe=!gs.gameWon&&gs.boomBy===myName;
-  const isClearMe=gs.gameWon&&gs.clearBy===myName;
-  const extraMsg=isBomb
-    ?`<span style="font-size:12px;color:var(--text3);">새 방 요청 시 지뢰 10개로 리셋, 턴 유지</span>`
-    :isClearMe?`<span style="font-size:12px;color:#27500A;">다음 방 요청 시 지뢰 +10개, 턴 유지</span>`
-    :`<span style="font-size:12px;color:var(--text3);">턴은 그대로 유지돼요</span>`;
+  const me=gs.players.find(function(p){return p.name===myName;});
+  const turns=me?me.turns:0;
+  const isBoom=gs.gameOver;
+  const isClear=gs.gameWon;
+  $("dlg-icon").textContent=isBoom?"💥":"🎉";
+  $("dlg-title").textContent=isBoom?"게임 오버!":"클리어!";
+  const hint=isBoom?"폭파 → 다음 방 지뢰 10개로 리셋":"클리어 → 다음 방 지뢰 +10개";
   $("dlg-body").innerHTML=(gs.msg?gs.msg+"<br><br>":"")+
-    `내 남은 턴: <b style="font-size:16px;">${turns}회</b><br>${extraMsg}`;
-  const btn=$("dlg-btn-req");
-  if(isBoomMe||isClearMe){
-    btn.style.display="block";
-    btn.textContent=isClearMe?"🆕 다음 방 만들기 요청":"📨 새 방 요청하기";
-    btn.disabled=false;
-  } else { btn.style.display="none"; }
-  $("dialog-gameover").classList.add("on");
+    "내 남은 턴: <b style='font-size:16px;'>"+turns+"회</b><br>"+
+    "<span style='font-size:12px;color:var(--text3);'>"+hint+"</span>";
+  const newBtn=$("dlg-new");
+  const canReq=(isBoom&&gs.boomBy===myName)||(isClear&&gs.clearBy===myName);
+  newBtn.style.display=canReq?"block":"none";
+  newBtn.textContent=isClear?"🆕 다음 방 만들기":"🆕 새 방 만들기";
+  $("dialog-over").classList.add("on");
 }
 
-$("dlg-btn-req").addEventListener("click",async()=>{
-  $("dlg-btn-req").textContent="생성 중..."; $("dlg-btn-req").disabled=true;
+$("dlg-new").addEventListener("click",async function(){
+  $("dlg-new").disabled=true;$("dlg-new").textContent="생성 중...";
   const gs=gameState;
   const wasCleared=gs.gameWon===true;
   const newMines=wasCleared?(gs.mines||10)+10:10;
   const newStage=wasCleared?(gs.stageNum||1)+1:1;
-  const newCleared=wasCleared?(gs.clearedRooms||0)+1:(gs.clearedRooms||0);
-  const newRoomId=Math.random().toString(36).slice(2,8).toUpperCase();
-  const newPlayers=gs.players.map(p=>({...p,pending:false,pendingMission:"",pendingSecsVal:0}));
-  const newState={
-    phase:"game", mines:newMines, adminPwHash:gs.adminPwHash,
-    playerCount:newPlayers.length, players:newPlayers,
-    stageNum:newStage, clearedRooms:newCleared,
-    pendingJoin:{}, board:null,
-    revealed:Array(400).fill(false), flagged:Array(400).fill(false),
-    gameOver:false, gameWon:false, firstClick:true,
-    msg:`🆕 ${newStage}번째 방 시작! 지뢰 ${newMines}개`
+  const newCleared=(gs.clearedRooms||0)+(wasCleared?1:0);
+  const newId=Math.random().toString(36).slice(2,8).toUpperCase();
+  const newPlayers=gs.players.map(function(p){
+    return {name:p.name,color:p.color,turns:p.turns,pending:false,pendingMission:"",pendingSecsVal:0,log:p.log||[]};
+  });
+  const ns={
+    phase:"game",mines:newMines,adminPwHash:gs.adminPwHash,
+    playerCount:newPlayers.length,players:newPlayers,
+    stageNum:newStage,clearedRooms:newCleared,
+    pendingJoin:{},board:null,
+    revealed:Array(ROWS*COLS).fill(false),flagged:Array(ROWS*COLS).fill(false),
+    gameOver:false,gameWon:false,firstClick:true,
+    msg:"🆕 "+newStage+"번째 방 시작! 지뢰 "+newMines+"개"
   };
   try{
-    await set(ref(db,"rooms/"+newRoomId), newState);
-    await update(roomRef(),{nextRoomId:newRoomId});
-    $("dialog-gameover").classList.remove("on");
+    await set(ref(db,"rooms/"+newId),ns);
+    await update(rRef(),{nextRoomId:newId});
+    $("dialog-over").classList.remove("on");
   }catch(e){
-    alert("새 방 생성 오류: "+e.message);
-    $("dlg-btn-req").textContent="📨 새 방 만들기";
-    $("dlg-btn-req").disabled=false;
+    alert("오류: "+e.message);
+    $("dlg-new").disabled=false;$("dlg-new").textContent="🆕 새 방 만들기";
   }
 });
-$("dlg-btn-exit").addEventListener("click",()=>{
-  $("dialog-gameover").classList.remove("on");
-  goPage("pg-lobby");
-  $("inp-rid").value=""; $("inp-name").value="";
-  ROOM_ID=null; myName=""; gameState=null; gameOverShown=false;
+
+$("dlg-exit").addEventListener("click",function(){
+  $("dialog-over").classList.remove("on");
+  ROOM_ID=null;myName="";gameState=null;overShown=false;
+  $("inp-rid").value="";$("inp-name").value="";
+  goPage("pg-lobby");loadRooms();
 });
-$("dlg-btn-enter-new").addEventListener("click",async()=>{
-  if(!pendingNewRoom) return;
+
+$("dlg-enter-new").addEventListener("click",async function(){
+  if(!pendingNew) return;
   $("dialog-newroom").classList.remove("on");
-  const newId=pendingNewRoom; pendingNewRoom=null;
-  ROOM_ID=newId; gameOverShown=false;
-  _chatListening=false; // 새 방 채팅 리스너 초기화
-  $("new-room-req-banner").style.display="none";
-  const snap=await get(roomRef());
+  ROOM_ID=pendingNew;pendingNew=null;overShown=false;
+  chatListening=false;
+  $("new-room-banner").style.display="none";
+  const snap=await get(rRef());
   if(snap.exists()) gameState=snap.val();
-  listenState(); goPage("pg-game"); renderGame();
-  setMsg("🆕 새 방에 입장했어요! 방 코드: "+ROOM_ID);
+  listenState();goPage("pg-game");renderGame();
+  setMsg("🆕 새 방! 코드: "+ROOM_ID);
 });
 
 // ── 지뢰판 ──
 function genBoard(sr,sc,mines){
-  const b=Array(ROWS*COLS).fill(0); let n=0;
+  const b=Array(ROWS*COLS).fill(0);let n=0;
   while(n<mines){
     const i=Math.floor(Math.random()*ROWS*COLS);
     const r=Math.floor(i/COLS),c=i%COLS;
     if(b[i]===-1||Math.abs(r-sr)<=1&&Math.abs(c-sc)<=1) continue;
-    b[i]=-1; n++;
+    b[i]=-1;n++;
   }
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
     if(b[r*COLS+c]===-1) continue;
@@ -541,89 +447,78 @@ async function clickCell(r,c){
   await sync();
   const gs=gameState;
   if(gs.gameOver||gs.gameWon) return;
-  const pi=gs.players.findIndex(p=>p.name===myName);
+  const pi=gs.players.findIndex(function(p){return p.name===myName;});
   if(pi===-1){setMsg("먼저 입장해야 해요.");return;}
   const me=gs.players[pi];
-  if(me.turns<=0){setMsg("턴이 없어요! 미션을 입력하고 승인받으세요.");return;}
+  if(me.turns<=0){setMsg("턴이 없어요! 미션을 입력하세요.");return;}
   const idx=r*COLS+c;
   if(gs.revealed[idx]||gs.flagged[idx]) return;
-  const upd={}; let board=gs.board;
+  const upd={};let board=gs.board;
   if(gs.firstClick){board=genBoard(r,c,gs.mines);upd.board=board;upd.firstClick=false;}
   if(board[idx]===-1){
-    const nr=[...gs.revealed];nr[idx]=true;
+    const nr=gs.revealed.slice();nr[idx]=true;
     upd.revealed=nr;upd.gameOver=true;upd.boomBy=me.name;
-    upd.msg=`💥 ${me.name}님이 지뢰를 밟았습니다! 게임 오버`;
-    setTimeout(()=>_sendSystem(`💥 ${me.name}님이 지뢰를 밟았어요!`),300);
+    upd.msg="💥 "+me.name+"님이 지뢰를 밟았습니다! 게임 오버";
+    setTimeout(function(){chatSys("💥 "+me.name+"님이 지뢰를 밟았어요!");},300);
   }else{
-    const nr=[...gs.revealed];flood(board,nr,r,c);
+    const nr=gs.revealed.slice();flood(board,nr,r,c);
     upd.revealed=nr;
-    upd.players=gs.players.map((pl,i)=>i===pi?{...pl,turns:pl.turns-1}:pl);
+    upd.players=gs.players.map(function(pl,i){return i===pi?Object.assign({},pl,{turns:pl.turns-1}):pl;});
     if(checkWin(board,nr)){
       upd.gameWon=true;upd.clearBy=me.name;
-      upd.msg=`🎉 ${me.name}님이 마지막 칸을 열었습니다! 클리어!`;
-      setTimeout(()=>_sendSystem(`🎉 클리어! ${me.name}님이 마지막 칸을 열었어요!`),300);
+      upd.msg="🎉 "+me.name+"님이 마지막 칸을 열었습니다! 클리어!";
+      setTimeout(function(){chatSys("🎉 클리어! "+me.name+"님이 마지막 칸을 열었어요!");},300);
     }
   }
-  await update(roomRef(),upd);
+  await update(rRef(),upd);
 }
 async function toggleFlag(r,c){
-  await sync();
-  const gs=gameState;
+  await sync();const gs=gameState;
   if(gs.gameOver||gs.gameWon) return;
-  const idx=r*COLS+c;
-  if(gs.revealed[idx]) return;
-  const nf=[...gs.flagged];nf[idx]=!nf[idx];
-  await update(roomRef(),{flagged:nf});
+  const idx=r*COLS+c;if(gs.revealed[idx]) return;
+  const nf=gs.flagged.slice();nf[idx]=!nf[idx];
+  await update(rRef(),{flagged:nf});
 }
 
 // ── 렌더 ──
+function setMsg(m){$("game-msg").textContent=m;}
 function renderGame(){
-  const gs=gameState; if(!gs) return;
+  const gs=gameState;if(!gs) return;
   $("mines-left").textContent=gs.mines-(gs.flagged||[]).filter(Boolean).length;
   if(gs.msg) setMsg(gs.msg);
   const s=$("room-stage");
-  if(s) s.textContent=`🏠 ${gs.stageNum||1}번째 방 | 클리어 ${gs.clearedRooms||0}회`;
-  renderPlayers(); renderBoard();
+  if(s) s.textContent="🏠 "+(gs.stageNum||1)+"번째 방 | 클리어 "+(gs.clearedRooms||0)+"회";
+  renderPlayers();renderBoard();
 }
-
 function renderPlayers(){
-  const gs=gameState;
-  const grid=$("players-grid"); grid.innerHTML="";
-  gs.players.forEach((p,i)=>{
-    const isMe=p.name===myName;
-    const hasTurn=p.turns>0;
+  const gs=gameState,grid=$("players-grid");grid.innerHTML="";
+  gs.players.forEach(function(p,i){
+    const isMe=p.name===myName,hasTurn=p.turns>0;
     const card=document.createElement("div");
-    card.className=`pcard${isMe?" me":hasTurn?" has-turn":" other"}`;
-    const chipCls=hasTurn?"pc-ok":p.pending?"pc-wait":"pc-none";
-    const chipTxt=hasTurn?`${p.turns}턴`:p.pending?"대기":"필요";
-    const lastLog=p.log&&p.log.length?p.log[p.log.length-1]:"";
-    card.innerHTML=`
-      <div style="display:flex;align-items:center;gap:3px;">
-        ${bHTML(p.name,p.color)}
-        <span class="pname" title="${p.name}">${p.name}${isMe?` <span style="font-size:9px;color:#185FA5;">(나)</span>`:""}</span>
-      </div>
-      <div class="pturns">${p.turns}</div>
-      <div style="font-size:9px;color:#888;text-align:center;">턴</div>
-      <div class="pchip ${chipCls}">${chipTxt}</div>
-      ${isMe&&!gs.gameOver&&!gs.gameWon?`<button class="pmission-btn" id="mbtn-${i}">${p.pending?"+ 추가":"미션"}</button>`:""}
-      ${isMe&&p.pending?`<div style="text-align:center;font-size:9px;color:#633806;">⏳대기중</div>`:""}
-      <div style="font-size:9px;color:var(--text3);min-height:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${lastLog}">${lastLog}</div>`;
+    card.className="pcard"+(isMe?" me":hasTurn?" has-turn":"");
+    const logTxt=p.log&&p.log.length?p.log[p.log.length-1]:"";
+    card.innerHTML=
+      '<div style="display:flex;align-items:center;gap:3px;">'+bHTML(p.name,p.color)+
+      '<span class="pname" title="'+p.name+'">'+p.name+(isMe?' <span style="font-size:9px;color:#185FA5;">(나)</span>':"")+
+      '</span></div>'+
+      '<div class="pturns">'+p.turns+'</div>'+
+      '<div style="font-size:9px;color:#888;text-align:center;">턴</div>'+
+      '<div class="pchip '+(hasTurn?"pc-ok":"pc-none")+'">'+(hasTurn?p.turns+"턴":"없음")+'</div>'+
+      (isMe&&!gs.gameOver&&!gs.gameWon?'<button class="pmission-btn" id="mb'+i+'">미션</button>':"")+
+      '<div style="font-size:9px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+logTxt+'">'+logTxt+'</div>';
     if(isMe&&!gs.gameOver&&!gs.gameWon){
-      const btn=card.querySelector(`#mbtn-${i}`);
-      if(btn) btn.addEventListener("click",()=>openMission(i));
+      const mb=card.querySelector("#mb"+i);
+      if(mb) mb.addEventListener("click",function(){openMission(i);});
     }
     grid.appendChild(card);
   });
 }
-
 function renderBoard(){
-  const gs=gameState;
-  const bd=$("board"); bd.innerHTML="";
-  const me=gs.players.find(p=>p.name===myName);
+  const gs=gameState,bd=$("board");bd.innerHTML="";
+  const me=gs.players.find(function(p){return p.name===myName;});
   const canPlay=me&&me.turns>0&&!gs.gameOver&&!gs.gameWon;
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-    const idx=r*COLS+c;
-    const el=document.createElement("div"); el.className="cell";
+    const idx=r*COLS+c,el=document.createElement("div");el.className="cell";
     if(gs.revealed&&gs.revealed[idx]){
       el.classList.add("revealed");
       const v=gs.board?gs.board[idx]:0;
@@ -635,220 +530,141 @@ function renderBoard(){
       el.classList.add("mine-show");el.textContent="💣";
     }
     if(canPlay){
-      el.addEventListener("click",()=>clickCell(r,c));
-      el.addEventListener("contextmenu",e=>{e.preventDefault();toggleFlag(r,c);});
-    }else if(!gs.gameOver&&!gs.gameWon){
-      el.style.cursor="not-allowed";el.style.opacity="0.65";
-    }
+      el.addEventListener("click",function(){clickCell(r,c);});
+      el.addEventListener("contextmenu",function(e){e.preventDefault();toggleFlag(r,c);});
+    }else if(!gs.gameOver&&!gs.gameWon){el.style.cursor="not-allowed";el.style.opacity="0.65";}
     bd.appendChild(el);
   }
 }
 
-// ── 미션 입력 ──
+// ── 미션 ──
 function openMission(idx){
-  missionPlayerIdx=idx; selMissionId=null; selTimeSecs=0;
+  mIdx=idx;selMId=null;selSecs=0;
   const p=gameState.players[idx];
-  const bc=$("m-badge"); bc.innerHTML=""; bc.appendChild(bEl(p.name,p.color));
+  const bc=$("m-badge");bc.innerHTML="";bc.appendChild(bEl(p.name,p.color));
   $("m-title").textContent=p.name+"님 미션 입력";
   $("time-hint").textContent="미션을 먼저 선택하세요";
-  hideErr("mission-err"); hideErr("time-err");
-  document.querySelectorAll(".tbtn").forEach(b=>{b.classList.remove("sel","disabled");b.style.opacity="1";b.style.cursor="pointer";});
-  renderMissionGrid(); goPage("pg-mission");
+  $("mission-err").style.display="none";$("time-err").style.display="none";
+  document.querySelectorAll(".tbtn").forEach(function(b){
+    b.classList.remove("sel","disabled");b.style.opacity="1";b.style.cursor="pointer";
+  });
+  renderMGrid();goPage("pg-mission");
 }
-function renderMissionGrid(){
-  const grid=$("mission-grid"); grid.innerHTML="";
-  MISSIONS.forEach(m=>{
+function renderMGrid(){
+  const g=$("mission-grid");g.innerHTML="";
+  MISSIONS.forEach(function(m){
     const d=document.createElement("div");
-    d.className="mbtn"+(selMissionId===m.id?" sel":"");
-    d.innerHTML=`<div style="font-size:14px;font-weight:500;">${m.name}</div>
-      <div style="font-size:11px;color:${selMissionId===m.id?"#185FA5":"#aaa"};margin-top:3px;">${m.maxH?"최대 "+m.maxH+"시간":"무제한"}</div>`;
-    d.addEventListener("click",()=>selMission(m.id));
-    grid.appendChild(d);
+    d.className="mbtn"+(selMId===m.id?" sel":"");
+    d.innerHTML='<div style="font-size:14px;font-weight:500;">'+m.name+'</div>'+
+      '<div style="font-size:11px;color:'+(selMId===m.id?"#185FA5":"#aaa")+';margin-top:3px;">'+(m.maxH?"최대 "+m.maxH+"시간":"무제한")+'</div>';
+    d.addEventListener("click",function(){selMission(m.id);});
+    g.appendChild(d);
   });
 }
 function selMission(mid){
-  selMissionId=mid; selTimeSecs=0;
-  const m=MISSIONS.find(x=>x.id===mid);
-  document.querySelectorAll(".tbtn").forEach(b=>{
+  selMId=mid;selSecs=0;
+  const m=MISSIONS.find(function(x){return x.id===mid;});
+  document.querySelectorAll(".tbtn").forEach(function(b){
     const s=parseInt(b.dataset.secs);
     b.classList.remove("sel","disabled");
     if(m.maxH&&s>m.maxH*3600){b.classList.add("disabled");b.style.opacity="0.35";b.style.cursor="not-allowed";}
     else{b.style.opacity="1";b.style.cursor="pointer";}
   });
-  $("time-hint").textContent=m.maxH?"최대 "+m.maxH+"시간까지 선택 가능":"시간 제한 없음";
-  hideErr("mission-err"); renderMissionGrid();
+  $("time-hint").textContent=m.maxH?"최대 "+m.maxH+"시간":"시간 제한 없음";
+  $("mission-err").style.display="none";
+  renderMGrid();
 }
-document.querySelectorAll(".tbtn").forEach(b=>{
-  b.addEventListener("click",()=>{
+document.querySelectorAll(".tbtn").forEach(function(b){
+  b.addEventListener("click",function(){
     if(b.classList.contains("disabled")) return;
-    selTimeSecs=parseInt(b.dataset.secs);
-    document.querySelectorAll(".tbtn").forEach(x=>x.classList.remove("sel"));
-    b.classList.add("sel"); hideErr("time-err");
+    selSecs=parseInt(b.dataset.secs);
+    document.querySelectorAll(".tbtn").forEach(function(x){x.classList.remove("sel");});
+    b.classList.add("sel");$("time-err").style.display="none";
   });
 });
-$("btn-back-mission").addEventListener("click",()=>goPage("pg-game"));
-$("btn-submit-mission").addEventListener("click",async()=>{
-  if(!selMissionId){showErr("mission-err","미션을 선택하세요.");return;}
-  if(!selTimeSecs){showErr("time-err","시간을 선택하세요.");return;}
-  const m=MISSIONS.find(x=>x.id===selMissionId);
-  if(m.maxH&&selTimeSecs>m.maxH*3600){showErr("time-err",m.name+"은 최대 "+m.maxH+"시간까지만 인정됩니다.");return;}
-  const timeStr=fmtTime(selTimeSecs);
-  const turns=calcTurns(selTimeSecs);
-  const p=gameState.players[missionPlayerIdx];
-  const logStr=`${m.name} ${timeStr} → ${turns}턴`;
-  const newPlayers=gameState.players.map((pl,i)=>
-    i===missionPlayerIdx?{...pl,turns:pl.turns+turns,pending:false,pendingMission:"",pendingSecsVal:0,log:[...(pl.log||[]),logStr]}:pl
-  );
-  await update(roomRef(),{
-    players:newPlayers,
-    msg:`✅ ${p.name}님 [${m.name}] ${timeStr} → ${turns}턴 부여!`
+$("btn-back-mission").addEventListener("click",function(){goPage("pg-game");});
+$("btn-submit-mission").addEventListener("click",async function(){
+  if(!selMId){$("mission-err").textContent="미션을 선택하세요.";$("mission-err").style.display="block";return;}
+  if(!selSecs){$("time-err").textContent="시간을 선택하세요.";$("time-err").style.display="block";return;}
+  const m=MISSIONS.find(function(x){return x.id===selMId;});
+  if(m.maxH&&selSecs>m.maxH*3600){$("time-err").textContent=m.name+"은 최대 "+m.maxH+"시간까지만 인정됩니다.";$("time-err").style.display="block";return;}
+  const turns=calcTurns(selSecs);
+  const timeStr=fmtTime(selSecs);
+  const p=gameState.players[mIdx];
+  const logStr=m.name+" "+timeStr+" → "+turns+"턴";
+  const newPlayers=gameState.players.map(function(pl,i){
+    return i===mIdx?Object.assign({},pl,{turns:pl.turns+turns,pending:false,pendingMission:"",pendingSecsVal:0,log:(pl.log||[]).concat([logStr])}):pl;
   });
-  _sendSystem(`✅ ${p.name}님 미션 완료! ${m.name} ${timeStr} → ${turns}턴`);
-  goPage("pg-game");
-  renderGame();
-});
-$("btn-back-game").addEventListener("click",()=>{goPage("pg-game");renderGame();});
-$("btn-add-mission").addEventListener("click",()=>{
-  if(gameState&&myName){const pi=gameState.players.findIndex(p=>p.name===myName);if(pi!==-1)openMission(pi);}
+  await update(rRef(),{players:newPlayers,msg:"✅ "+p.name+"님 ["+m.name+"] "+timeStr+" → "+turns+"턴 부여!"});
+  chatSys("✅ "+p.name+"님 미션! "+m.name+" "+timeStr+" → "+turns+"턴");
+  goPage("pg-game");renderGame();
 });
 
 // ── 채팅 ──
-var _chatListening=false;
-
-var _chatJoinTime=0; // 입장 시각 — 이후 메시지만 표시
-
-function _startChat(){
-  if(_chatListening||!ROOM_ID) return;
-  _chatListening=true;
-  _chatJoinTime=Date.now(); // 입장 시각 기록
-  var chatPath=ref(db,"rooms/"+ROOM_ID+"/chat");
-  onValue(chatPath,function(snap){
-    var msgs=[];
-    if(snap.exists()){
-      snap.forEach(function(item){
-        var v=item.val();
-        // 입장 시각 이후 메시지만 표시
-        if(v&&v.ts&&v.ts>=_chatJoinTime){
-          msgs[msgs.length]={
-            name: v.name||"",
-            text: v.text||"",
-            ts:   v.ts,
-            type: v.type||"msg"
-          };
-        }
-      });
-    }
-    msgs.sort(function(a,b){ return a.ts-b.ts; });
-    _drawChat(msgs);
+function startChat(){
+  onValue(ref(db,"rooms/"+ROOM_ID+"/chat"),function(snap){
+    const msgs=[];
+    if(snap.exists()) snap.forEach(function(c){
+      const v=c.val();
+      if(v&&v.ts&&v.ts>=chatJoinTime) msgs.push({name:v.name||"",text:v.text||"",ts:v.ts,type:v.type||"msg"});
+    });
+    msgs.sort(function(a,b){return a.ts-b.ts;});
+    drawChat(msgs);
   });
 }
-
-function _drawChat(msgs){
-  var el=document.getElementById("chat-msgs");
-  if(!el) return;
-  var wasBottom=(el.scrollHeight-el.scrollTop-el.clientHeight)<60;
-  el.innerHTML="";
-  var list=msgs.slice(-100);
-  var newUnread=0;
-  for(var i=0;i<list.length;i++){
-    var m=list[i];
-    var isSys=(m.type==="system");
-    var isMe=(m.name===myName && !isSys);
-    var wrap=document.createElement("div");
+function drawChat(msgs){
+  const el=$("chat-msgs");if(!el) return;
+  const bot=el.scrollHeight-el.scrollTop-el.clientHeight<60;
+  let newN=0;el.innerHTML="";
+  msgs.forEach(function(m){
+    const isMe=m.name===myName,isSys=m.type==="system";
+    const wrap=document.createElement("div");
     if(isSys){
-      // 시스템 메시지
       wrap.style.cssText="text-align:center;margin:4px 0;";
-      wrap.innerHTML='<span style="font-size:11px;color:var(--text3);background:var(--bg2);padding:2px 12px;border-radius:20px;display:inline-block;">'+_esc(m.text)+'</span>';
-    } else if(isMe){
-      // 내 메시지 (오른쪽)
-      var t=new Date(m.ts);
-      var ts=_pad(t.getHours())+":"+_pad(t.getMinutes());
-      wrap.style.cssText="display:flex;flex-direction:column;align-items:flex-end;margin:3px 0;max-width:85%;align-self:flex-end;margin-left:auto;";
-      wrap.innerHTML='<div style="background:#185FA5;color:#fff;padding:7px 12px;border-radius:14px 14px 4px 14px;font-size:13px;line-height:1.4;word-break:break-word;max-width:100%;">'+_esc(m.text)+'</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">'+ts+'</div>';
-    } else {
-      // 상대방 메시지 (왼쪽)
-      var t2=new Date(m.ts);
-      var ts2=_pad(t2.getHours())+":"+_pad(t2.getMinutes());
-      wrap.style.cssText="display:flex;flex-direction:column;align-items:flex-start;margin:3px 0;max-width:85%;";
-      wrap.innerHTML='<div style="font-size:10px;color:var(--text3);margin-bottom:2px;">'+_esc(m.name)+'</div><div style="background:var(--bg2);color:var(--text);padding:7px 12px;border-radius:14px 14px 14px 4px;font-size:13px;line-height:1.4;word-break:break-word;max-width:100%;">'+_esc(m.text)+'</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">'+ts2+'</div>';
-      newUnread++;
+      wrap.innerHTML='<span style="font-size:11px;color:var(--text3);background:var(--bg2);padding:2px 10px;border-radius:20px;">'+esc(m.text)+'</span>';
+    }else if(isMe){
+      const t=new Date(m.ts);
+      wrap.style.cssText="display:flex;flex-direction:column;align-items:flex-end;margin:3px 0;";
+      wrap.innerHTML='<div style="background:#185FA5;color:#fff;padding:7px 12px;border-radius:14px 14px 4px 14px;font-size:13px;max-width:85%;word-break:break-word;">'+esc(m.text)+'</div>'+
+        '<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+pad(t.getHours())+":"+pad(t.getMinutes())+'</div>';
+    }else{
+      const t=new Date(m.ts);
+      wrap.style.cssText="display:flex;flex-direction:column;align-items:flex-start;margin:3px 0;";
+      wrap.innerHTML='<div style="font-size:10px;color:var(--text3);margin-bottom:2px;">'+esc(m.name)+'</div>'+
+        '<div style="background:var(--bg2);padding:7px 12px;border-radius:14px 14px 14px 4px;font-size:13px;max-width:85%;word-break:break-word;">'+esc(m.text)+'</div>'+
+        '<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+pad(t.getHours())+":"+pad(t.getMinutes())+'</div>';
+      if(!chatOn) newN++;
     }
     el.appendChild(wrap);
+  });
+  if(newN>0){
+    chatUnread+=newN;
+    const dot=$("chat-dot");
+    dot.textContent=chatUnread>9?"9+":String(chatUnread);
+    dot.style.display="flex";dot.style.alignItems="center";dot.style.justifyContent="center";
   }
-  if(newUnread>0&&!_chatIsOpen()){
-    var dot=document.getElementById("chat-unread-dot");
-    if(dot){
-      _chatUnread+=newUnread;
-      dot.textContent=_chatUnread>9?"9+":String(_chatUnread);
-      dot.style.display="flex";
-      dot.style.alignItems="center";
-      dot.style.justifyContent="center";
-    }
-  }
-  if(wasBottom) _scrollChatBottom();
+  if(bot||chatOn) el.scrollTop=el.scrollHeight;
 }
-
-var _chatUnread=0;
-
-function _chatIsOpen(){
-  var w=document.getElementById("chat-win");
-  return w&&w.style.display!=="none";
-}
-function _scrollChatBottom(){
-  var el=document.getElementById("chat-msgs");
-  if(el) el.scrollTop=el.scrollHeight;
-}
-function _esc(s){
-  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-}
-function _pad(n){ return n<10?"0"+n:String(n); }
-
-async function _sendSystem(text){
-  if(!ROOM_ID||!text) return;
-  try{
-    await fbPush(ref(db,"rooms/"+ROOM_ID+"/chat"),{
-      name:"",text:text,ts:Date.now(),type:"system"
-    });
-  }catch(e){ console.warn("시스템 메시지 오류:",e.message); }
-}
-
-async function _sendChat(){
-  var inp=document.getElementById("chat-input");
-  var text=(inp.value||"").trim();
+async function chatSend(){
+  const inp=$("chat-inp"),text=(inp.value||"").trim();
   if(!text||!myName||!ROOM_ID) return;
   inp.value="";
-  try{
-    await fbPush(ref(db,"rooms/"+ROOM_ID+"/chat"),{
-      name:myName,text:text,ts:Date.now(),type:"msg"
-    });
-  }catch(e){
-    alert("전송 실패: "+e.message);
-    inp.value=text;
-  }
+  try{ await push(ref(db,"rooms/"+ROOM_ID+"/chat"),{name:myName,text:text,ts:Date.now(),type:"msg"}); }
+  catch(e){ alert("전송 실패: "+e.message); inp.value=text; }
 }
-
-// 채팅 버튼/창 이벤트
-document.getElementById("chat-btn").addEventListener("click",function(){
-  var w=document.getElementById("chat-win");
-  if(w.style.display==="none"||!w.style.display){
-    w.style.display="flex";
-    w.style.flexDirection="column";
-    _chatUnread=0;
-    var dot=document.getElementById("chat-unread-dot");
-    if(dot) dot.style.display="none";
-    _scrollChatBottom();
-    setTimeout(function(){ document.getElementById("chat-input").focus(); },50);
-  } else {
-    w.style.display="none";
-  }
+async function chatSys(text){
+  if(!ROOM_ID||!text) return;
+  try{ await push(ref(db,"rooms/"+ROOM_ID+"/chat"),{name:"",text:text,ts:Date.now(),type:"system"}); }
+  catch(e){}
+}
+$("chat-btn").addEventListener("click",function(){
+  chatOn=!chatOn;
+  $("chat-win").style.display=chatOn?"flex":"none";
+  if(chatOn){ $("chat-win").style.flexDirection="column"; chatUnread=0; $("chat-dot").style.display="none"; $("chat-msgs").scrollTop=$("chat-msgs").scrollHeight; setTimeout(function(){$("chat-inp").focus();},50); }
 });
-document.getElementById("chat-close").addEventListener("click",function(){
-  document.getElementById("chat-win").style.display="none";
-});
-document.getElementById("chat-send").addEventListener("click",_sendChat);
-document.getElementById("chat-input").addEventListener("keydown",function(e){
-  if(e.key==="Enter"){ e.preventDefault(); _sendChat(); }
-});
+$("chat-x").addEventListener("click",function(){chatOn=false;$("chat-win").style.display="none";});
+$("chat-send").addEventListener("click",chatSend);
+$("chat-inp").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();chatSend();}});
 </script>
 </body>
 </html>
