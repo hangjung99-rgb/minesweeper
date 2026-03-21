@@ -378,6 +378,7 @@ function renderPlayers(){
         <div class="turn-chip ${p.turns>0?"on":""}">${p.turns}턴</div>
         <button class="btn-plus" onclick="giveTurn(${i})">+1</button>
         <button class="btn-minus" onclick="removeTurn(${i})">−1</button>
+        <button onclick="removePlayer(${i})" style="padding:5px 8px;border:0.5px solid #E24B4A;border-radius:var(--r);background:#FCEBEB;color:#791F1F;font-size:12px;cursor:pointer;" title="${p.name} 삭제">🗑</button>
       </div>
     </div>`;
   }).join("");
@@ -530,6 +531,22 @@ window.addPlayer=async()=>{
   }catch(e){
     errEl.textContent="오류: "+e.message; errEl.style.display="block";
   }
+};
+
+// ── 팀원 삭제 ──
+window.removePlayer=async(i)=>{
+  const p=gameState.players[i];
+  if(!confirm(`"${p.name}"님을 팀에서 삭제할까요?
+(이 작업은 되돌릴 수 없어요)`)) return;
+  const newPlayers=gameState.players.filter((_,idx)=>idx!==i);
+  try{
+    await update(ref(db,"rooms/"+ROOM_ID),{
+      players:newPlayers,
+      playerCount:newPlayers.length,
+      msg:`관리자: ${p.name}님이 팀에서 제외되었어요.`
+    });
+    toast(`${p.name}님 삭제 완료`);
+  }catch(e){ alert("오류: "+e.message); }
 };
 
 // ── 로그아웃 ──
