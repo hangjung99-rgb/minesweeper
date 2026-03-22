@@ -144,7 +144,8 @@ input:focus,select:focus{border-color:#555;}
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="players">👥 플레이어</button>
-    <button class="tab-btn" data-tab="add">➕ 팀원 추가</button>
+    <button class="tab-btn" data-tab="add">➕ 팀원 추가/삭제</button>
+    <button class="tab-btn" data-tab="newroom">🆕 새 방</button>
   </div>
 
   <div class="tab-pane active" id="pane-players">
@@ -164,6 +165,34 @@ input:focus,select:focus{border-color:#555;}
       <div class="err" id="add-err"></div>
       <div class="pane-title" style="margin-top:12px;">팀원 삭제</div>
       <div id="delete-list"><div class="empty">불러오는 중...</div></div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="pane-newroom">
+    <div class="pane-card">
+      <div class="pane-title">새 방 만들기</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:4px;">
+        현재 플레이어와 턴 수를 유지한 채 새 방을 만들어요.<br>
+        지뢰 수를 직접 설정할 수 있어요.
+      </div>
+      <!-- 현재 방 정보 -->
+      <div id="newroom-info" style="background:var(--bg2);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text2);"></div>
+      <!-- 지뢰 수 설정 -->
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+        <label style="font-size:13px;color:var(--text2);white-space:nowrap;">지뢰 수:</label>
+        <input type="number" id="newroom-mines" min="1" max="300" style="width:90px;">
+        <span style="font-size:12px;color:var(--text3);">개</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button class="mines-preset" data-mines="10" style="padding:6px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;">10개</button>
+        <button class="mines-preset" data-mines="20" style="padding:6px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;">20개</button>
+        <button class="mines-preset" data-mines="30" style="padding:6px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;">30개</button>
+        <button class="mines-preset" data-mines="50" style="padding:6px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;">50개</button>
+        <button class="mines-preset" data-mines="80" style="padding:6px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;">80개</button>
+        <button class="mines-preset" data-mines="100" style="padding:6px 12px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;">100개</button>
+      </div>
+      <div class="err" id="newroom-err"></div>
+      <button id="btn-make-newroom" style="width:100%;padding:13px;border:none;border-radius:var(--r);background:var(--text);color:var(--bg);font-size:14px;font-weight:500;cursor:pointer;margin-top:4px;">🆕 새 방 생성</button>
     </div>
   </div>
 </div>
@@ -394,6 +423,7 @@ function updateStageLbl(){
 function renderAll(){
   renderPlayers();
   renderDeleteList();
+  renderNewRoomInfo();
 }
 
 function renderPlayers(){
@@ -482,6 +512,75 @@ $("btn-add-player").addEventListener("click",async function(){
   toast(name+"님 추가 완료!");
 });
 $("add-name").addEventListener("keydown",e=>{if(e.key==="Enter")$("btn-add-player").click();});
+
+// ── 새 방 탭 ──
+function renderNewRoomInfo(){
+  const el=document.getElementById("newroom-info");
+  if(!el||!gameState) return;
+  const wasCleared=gameState.gameWon===true;
+  const isBoom=gameState.gameOver===true;
+  const nextMinesAuto=wasCleared?(gameState.mines||10)+10:isBoom?10:(gameState.mines||10);
+  const nextStageAuto=wasCleared?(gameState.stageNum||1)+1:isBoom?1:(gameState.stageNum||1)+1;
+  // 지뢰 입력 기본값
+  const minesInput=document.getElementById("newroom-mines");
+  if(minesInput&&!minesInput.value) minesInput.value=nextMinesAuto;
+  el.innerHTML=
+    "현재: <b>"+(gameState.stageNum||1)+"번째 방</b> | 지뢰 <b>"+(gameState.mines||10)+"개</b><br>"+
+    "추천 다음 방: <b style='color:#185FA5;'>"+nextStageAuto+"번째 방 | 지뢰 "+nextMinesAuto+"개</b>"+
+    (wasCleared?" 🎉 클리어":isBoom?" 💥 폭파":"");
+}
+
+// 지뢰 프리셋 버튼
+document.querySelectorAll(".mines-preset").forEach(function(btn){
+  btn.addEventListener("click",function(){
+    const inp=document.getElementById("newroom-mines");
+    if(inp) inp.value=this.dataset.mines;
+  });
+});
+
+// 새 방 생성 버튼
+document.getElementById("btn-make-newroom").addEventListener("click",async function(){
+  const mc=parseInt((document.getElementById("newroom-mines")||{}).value)||10;
+  const errEl=document.getElementById("newroom-err");
+  errEl.style.display="none";
+  if(mc<1||mc>300){errEl.textContent="지뢰 수는 1~300개입니다.";errEl.style.display="block";return;}
+  if(!gameState||!gameState.players){errEl.textContent="게임 데이터가 없어요.";errEl.style.display="block";return;}
+  this.disabled=true;this.textContent="생성 중...";
+  const wasCleared=gameState.gameWon===true;
+  const newStage=wasCleared?(gameState.stageNum||1)+1:(gameState.stageNum||1);
+  const newCleared=(gameState.clearedRooms||0)+(wasCleared?1:0);
+  const newId=Math.random().toString(36).slice(2,8).toUpperCase();
+  const newPlayers=gameState.players.map(function(p){
+    return {name:p.name,color:p.color,turns:p.turns,pending:false,pendingMission:"",pendingSecsVal:0,log:p.log||[]};
+  });
+  const ns={
+    phase:"game",mines:mc,adminPwHash:gameState.adminPwHash,
+    playerCount:newPlayers.length,players:newPlayers,
+    stageNum:newStage,clearedRooms:newCleared,
+    pendingJoin:{},board:null,
+    revealed:Array(ROWS*COLS).fill(false),flagged:Array(ROWS*COLS).fill(false),
+    gameOver:false,gameWon:false,firstClick:true,
+    msg:"🆕 "+newStage+"번째 방 시작! 지뢰 "+mc+"개"
+  };
+  try{
+    await set(ref(db,"rooms/"+newId),ns);
+    // 기존 방에 nextRoomId 기록 → 플레이어들 자동 이동
+    await update(ref(db,"rooms/"+ROOM_ID),{nextRoomId:newId});
+    ROOM_ID=newId;
+    gameState=ns;
+    document.getElementById("room-lbl").textContent=ROOM_ID;
+    localStorage.setItem("admin_session",JSON.stringify({roomId:ROOM_ID,pw:adminPw}));
+    listenState();
+    renderAll();
+    updateStageLbl();
+    document.getElementById("newroom-mines").value="";
+    toast("✅ 새 방 생성 완료! 코드: "+newId);
+    switchTab("players");
+  }catch(e){
+    errEl.textContent="오류: "+e.message;errEl.style.display="block";
+  }
+  this.disabled=false;this.textContent="🆕 새 방 생성";
+});
 
 // ── 토스트 ──
 function toast(msg){
