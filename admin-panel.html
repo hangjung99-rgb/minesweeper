@@ -138,6 +138,7 @@ input:focus,select:focus{border-color:#555;}
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
       <div class="stage-pill" id="stage-lbl"></div>
       <div class="room-pill" id="room-lbl">------</div>
+      <button id="btn-go-newroom" style="padding:4px 10px;border:0.5px solid #185FA5;border-radius:20px;background:#E6F1FB;color:#185FA5;font-size:11px;cursor:pointer;font-weight:500;">🆕 새 방</button>
       <button id="btn-logout" style="padding:4px 10px;border:0.5px solid var(--border2);border-radius:20px;background:var(--bg);color:var(--text3);font-size:11px;cursor:pointer;">로그아웃</button>
     </div>
   </div>
@@ -370,6 +371,7 @@ $("btn-logout").addEventListener("click",()=>{
   ROOM_ID=null;adminPw="";gameState=null;
   showScreen("sc-login");
 });
+$("btn-go-newroom").addEventListener("click",()=>switchTab("newroom"));
 
 // ── 자동 로그인 ──
 (async function tryAutoLogin(){
