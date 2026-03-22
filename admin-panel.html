@@ -338,7 +338,15 @@ $("btn-login").addEventListener("click",async function(){
     const gs=snap.val();
     let correct="";try{correct=atob(gs.adminPwHash||"");}catch(e){correct=gs.adminPwHash||"";}
     if(pw!==correct){errEl.textContent="비밀번호가 틀렸습니다.";errEl.style.display="block";reset();return;}
-    adminPw=pw;gameState=gs;
+    // nextRoomId가 있으면 최신 방으로 자동 이동
+    let finalGs=gs, finalId=ROOM_ID, hops=0;
+    while(finalGs.nextRoomId && finalGs.nextRoomId!==finalId && hops<10){
+      finalId=finalGs.nextRoomId;
+      const ns=await get(ref(db,"rooms/"+finalId));
+      if(!ns.exists()) break;
+      finalGs=ns.val(); hops++;
+    }
+    ROOM_ID=finalId; adminPw=pw; gameState=finalGs;
     localStorage.setItem("admin_session",JSON.stringify({roomId:ROOM_ID,pw}));
     enterDash();
     listenState();
@@ -375,7 +383,21 @@ $("btn-logout").addEventListener("click",()=>{
     const gs=snap.val();
     let correct="";try{correct=atob(gs.adminPwHash||"");}catch(e){correct=gs.adminPwHash||"";}
     if(pw!==correct){localStorage.removeItem("admin_session");return;}
-    ROOM_ID=roomId;adminPw=pw;gameState=gs;
+    // nextRoomId가 있으면 최신 방으로 자동 이동
+    let finalRoomId=roomId;
+    let finalGs=gs;
+    let hops=0;
+    while(finalGs.nextRoomId && finalGs.nextRoomId!==finalRoomId && hops<10){
+      finalRoomId=finalGs.nextRoomId;
+      const nextSnap=await get(ref(db,"rooms/"+finalRoomId));
+      if(!nextSnap.exists()) break;
+      finalGs=nextSnap.val();
+      hops++;
+    }
+    if(finalRoomId!==roomId){
+      localStorage.setItem("admin_session",JSON.stringify({roomId:finalRoomId,pw}));
+    }
+    ROOM_ID=finalRoomId;adminPw=pw;gameState=finalGs;
     enterDash();
     listenState();
   }catch(e){localStorage.removeItem("admin_session");}
